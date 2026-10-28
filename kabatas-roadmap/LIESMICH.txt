@@ -1,0 +1,18 @@
+KABATAS – Modern Legal Excellence
+
+Starten: Ordner über einen lokalen Webserver öffnen, z. B.
+  python3 -m http.server 8000
+und dann http://localhost:8000 aufrufen (direkt per Doppelklick lädt der Browser die 3D-Modelle nicht).
+
+Aufbau
+  index.html           Seite, Gestaltung (CSS) und Inhalte
+  js/hammer.js         Szene, Licht, Scroll-Choreografie, Linie, Navigation
+  js/models.js         Hammer und Sockel (gescannt oder gebaut), Waage
+  js/glb.js            Laden und Ausrichten der 3D-Modelle
+  js/dissolve.js       Auflöse-Effekt beim Erscheinen des Sockels
+  js/textures.js       Holz- und Metalltexturen für den gebauten Ersatz
+  assets/models/*.wasm GLB-Modelle (Endung .wasm, weil die Vorschau keine .glb ausliefert;
+                       für einen eigenen Server dürfen sie auch .glb heißen)
+
+Platzhalter in eckigen Klammern [ ] vor dem Livegang ersetzen.
+Schriften kommen von Google Fonts – für DSGVO-konformen Betrieb lokal hosten.
