@@ -57,3 +57,13 @@ Noch nicht angelegt: Wellington, Blücher, General Winter.
 - Netzwerk: `fal.run`, `queue.fal.run`, `mcp.fal.ai`, `api.fal.ai` erreichbar; `v3.fal.media` (Ergebnis-Downloads) noch blockiert.
 - Schlüssel: Anfragen an fal kommen ohne Schlüssel an (HTTP 401). Das Network Secret muss `fal.run`, `*.fal.run` und `*.fal.ai` abdecken (Header `Authorization`, Prefix `Key`).
 - `claude mcp add … fal https://mcp.fal.ai/mcp-relay` wurde nur in der temporären Umgebung eingetragen und ist in einer neuen Sitzung weg.
+
+## Komplette Folge mit Mischief 1 (fal), Querformat (fertig)
+
+- 16:9: https://d2ol7oe51mr4n9.cloudfront.net/user_3LG3QXIQE4FmWT2MJcDCK9LTDHj/e7ba234c-3707-4887-b0c2-c5dfc6f3a297.mp4
+- 9:16 (Video mittig, unscharfer Hintergrund): https://d2ol7oe51mr4n9.cloudfront.net/user_3LG3QXIQE4FmWT2MJcDCK9LTDHj/17d325c5-8787-4e5d-be92-357ce29f14ee.mp4
+- Länge 1:41, alle 15 Szenen, gekürzter Sprechertext ab Szene 7, Karten aus Natural-Earth-Daten (Küsten korrekt, keine historischen Grenzen)
+- Verbrauch: 76,7 Higgsfield-Credits (529,19 → 452,52) für Bilder und Stimmen, ca. 0,47 $ bei fal für 18 Clips à 5 s
+- Neue Elements: Wellington `b8031487-b03c-4ed3-8f51-37e599323ec1`, Bluecher `0afc49e1-303d-43a5-85c3-5dbe5117479c`, GeneralWinter `b494425c-89d8-472b-a0b9-7a866b9a98c7`
+- Mischief 1 (`tbc/mischief-1/image-to-video`): nur Parameter `image_url`, `prompt`, `duration` (3 oder 5); Ausgabe immer 1280×720, 16 fps; 0,005 $/s
+- Stimmen neu: Blücher = Barrett `d603a8cd-3fe1-55e0-9245-617a2589131e`, Wellington = Harrison `573e5163-59b3-4926-aab1-951ef2985f81`
