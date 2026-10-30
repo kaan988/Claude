@@ -21,6 +21,7 @@ Eine YouTube-Shorts/TikTok-Serie, in der historische Ereignisse von 3D-animierte
 | Datei | Inhalt |
 |---|---|
 | [`mischief-leitfaden.md`](mischief-leitfaden.md) | Mischief 1 (fal) günstig und hochwertig nutzen: alle Einstellungen, Testergebnisse, Hochformat-Trick, Arbeitskette, Prompt-Vorlage, Kosten |
+| [`ki-shorts-guenstig/SKILL.md`](ki-shorts-guenstig/SKILL.md) | Skill für ChatGPT mit allen Erkenntnissen zu Preisen, Mischief 1, Kling und Abläufen; passt mit rund 7.300 Zeichen auch in die Anweisungen eines eigenen GPTs |
 
 ## Schnellstart (Reihenfolge)
 
