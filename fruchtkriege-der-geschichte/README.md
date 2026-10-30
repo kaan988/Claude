@@ -16,6 +16,12 @@ Eine YouTube-Shorts/TikTok-Serie, in der historische Ereignisse von 3D-animierte
 | [`folge-01-napoleon/06-faktencheck.md`](folge-01-napoleon/06-faktencheck.md) | Jede Aussage geprüft, bewusste Freiheiten, Quellen |
 | [`folge-01-napoleon/untertitel-de.srt`](folge-01-napoleon/untertitel-de.srt) | Fertige Untertiteldatei zum Import in CapCut |
 
+## Leitfäden
+
+| Datei | Inhalt |
+|---|---|
+| [`mischief-leitfaden.md`](mischief-leitfaden.md) | Mischief 1 (fal) günstig und hochwertig nutzen: alle Einstellungen, Testergebnisse, Hochformat-Trick, Arbeitskette, Prompt-Vorlage, Kosten |
+
 ## Schnellstart (Reihenfolge)
 
 1. **Figuren:** Character Sheets → Hero-Bilder → als Higgsfield-Elements speichern (`02`)
