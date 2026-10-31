@@ -169,7 +169,7 @@ const EV = []; const sfx = (t, name, gain = 1) => (EV.push({ t, sfx: name, gain 
 const lead = .06;
 const K = {};   // all keyed times in one place
 function keys() {
-  K.uploads = T0('uploads') - lead; K.isnt = T0(/^isn'?t$/); K.its = T0(/^it'?s$/); K.test = T1('test');
+  K.uploads = T0('uploads') - lead; K.isnt = T0(/^isn'?t$/); K.its = T0("it's"); K.test = T1('test');
   K.they = T0('they'); K.switched = T0('switched'); K.sandbox2 = T0('sandbox', 2); K.door = T0('door'); K.internet = T0('internet'); K.proxy = T0('proxy');
   K.broke = T0('broke') - lead; K.notes = T0('notes'); K.wrote = T0('wrote'); K.cont = T1('continue');
   K.in = T0('in', 1); K.thirteen = T0(/^(thirteen|13)$/); K.control = T0('control'); K.clusters = T1('clusters');

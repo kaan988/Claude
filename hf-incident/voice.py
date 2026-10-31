@@ -14,14 +14,17 @@ LINES = [  # (text, pause after)
  ("A third of its infrastructure was rebuilt.", .6),
  ("It has been called the first true AI safety incident.", 0),
 ]
+FIX = {'dˈeɪɾəsˌɛt': 'dˈeɪtəsˌɛt', 'wˈʌn ɹˈoʊt:': 'wˈʌn ɹˈoʊt,'}   # crisp t in 'dataset'; no clipped t before the colon
 sr = 24000; parts = []; spans = []
 for i, (line, pause) in enumerate(LINES):
-    a, sr = k.create(line, voice='am_michael', speed=1.05, lang='en-us')
+    ph = k.tokenizer.phonemize(line, 'en-us')
+    for x, y in FIX.items(): ph = ph.replace(x, y)
+    a, sr = k.create(ph, voice='am_michael', speed=1.05, lang='en-us', is_phonemes=True)
     # trim Kokoro's own edge silence, then add the chosen pause
     e = np.convolve(np.abs(a), np.ones(240)/240, 'same'); idx = np.where(e > .004)[0]
     a = a[max(0, idx[0]-480):idx[-1]+960]
     o = sum(len(p) for p in parts); spans.append((o, o+len(a))); parts += [a, np.zeros(int(pause*sr), np.float32)]
-    print(i+1, round(len(a)/sr, 2), k.tokenizer.phonemize(line, 'en-us')[:90])
+    print(i+1, round(len(a)/sr, 2), ph[:90])
 lead = np.zeros(int(.6*sr), np.float32)
 v = np.concatenate([lead] + parts); sf.write('audio/voice.wav', v, sr)
 print('total', round(len(v)/sr, 2))

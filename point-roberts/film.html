@@ -519,7 +519,7 @@ function buildTimeline() {
   const tStamp = T0(/^(twenty|2020)/) - .02;
   sfx(tStamp, 'impact');
   item(tStamp, T0(/^(eighty|80)$/) + .3, (ctx, cam, t) => stamp(ctx, t, tStamp, T0(/^(eighty|80)$/)), 8);
-  const tSplit = T0('border', 3) - lead, tClosed = T0('closed') - lead, tUntil = T0('until') - lead, tReopen = T0('reopened') - lead, tIts = T0(/^it'?s$/, 2);
+  const tSplit = T0('border', 3) - lead, tClosed = T0('closed') - lead, tUntil = T0('until') - lead, tReopen = T0('reopened') - lead, tIts = T0("it's", 2);
   sfx(tSplit, 'whoosh_out', .5);
   item(tSplit, tIts + 1.6, (ctx, cam, t) => splitTint(ctx, cam, t, tSplit, tIts), 1);
   sfx(tSplit + .1, 'paper_slide');
@@ -703,7 +703,7 @@ function drawScene(t) {
 const SATBUF = mk();
 let STAMP_T = 1e9;
 function endTints(ctx, cam, t) {
-  const t0 = T0(/^it'?s$/, 2) + .6, a = clamp((t - t0) / .6);
+  const t0 = T0("it's", 2) + .6, a = clamp((t - t0) / .6);
   if (a <= 0) return;
   const s = S(cam), p = proj().scale(256 / (2 * Math.PI) * s).translate([(128 - cam.X) * s + cam.sx, (128 - cam.Y) * s + cam.sy]).clipExtent([[-10, -10], [W + 10, H + 10]]);
   const path = d3.geoPath(p, ctx);
