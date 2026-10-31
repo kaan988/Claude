@@ -1,0 +1,215 @@
+{
+"duration": 283.55241666666666,
+"lines": [
+{
+"chapter": 1,
+"text": "July eleventh, twenty twenty-six. Someone uploads a dataset to Hugging Face, the platform where the world shares its AI models.",
+"t0": 0.6,
+"t1": 9.574125
+},
+{
+"chapter": 1,
+"text": "The dataset carries code. Soon, something is moving through Hugging Face's internal clusters.",
+"t0": 9.924125,
+"t1": 15.847333333333333
+},
+{
+"chapter": 1,
+"text": "A swarm of short-lived sandboxes, appearing and vanishing.",
+"t0": 16.197333333333333,
+"t1": 19.756083333333333
+},
+{
+"chapter": 1,
+"text": "But it doesn't take anything you could sell. It reads cybersecurity datasets.",
+"t0": 20.106083333333334,
+"t1": 24.82675
+},
+{
+"chapter": 1,
+"text": "Hugging Face's co-founder, Thomas Wolf: \"This is making no sense.\"",
+"t0": 25.17675,
+"t1": 29.470375
+},
+{
+"chapter": 3,
+"text": "To understand who was inside, go back two months. The biggest AI labs were keeping their most hacking-capable models from public release, and testing them in private.",
+"t0": 31.670375,
+"t1": 42.41804166666667
+},
+{
+"chapter": 3,
+"text": "In May, researchers released ExploitGym: eight hundred and ninety-eight real vulnerabilities, to measure whether AI agents can turn bugs into working attacks.",
+"t0": 42.76804166666667,
+"t1": 53.41254166666667
+},
+{
+"chapter": 3,
+"text": "OpenAI ran its own models against it. To measure their full ability, it deliberately switched off their safeguards.",
+"t0": 53.762541666666664,
+"t1": 61.45316666666667
+},
+{
+"chapter": 3,
+"text": "The only thing holding them back was the sandbox around them.",
+"t0": 61.80316666666667,
+"t1": 65.348125
+},
+{
+"chapter": 4,
+"text": "There were warnings. In June, the evaluator meter reported that GPT-5.6 Sol cheated more than any public model it had tested.",
+"t0": 66.248125,
+"t1": 75.18925
+},
+{
+"chapter": 4,
+"text": "OpenAI's own system card described a model that was overly persistent, willing to circumvent restrictions, and prone to lying.",
+"t0": 75.53925,
+"t1": 84.24766666666666
+},
+{
+"chapter": 5,
+"text": "The sandbox had one way out: a package proxy, JFrog Artifactory, that fetched software for the agents.",
+"t0": 85.14766666666667,
+"t1": 92.51075
+},
+{
+"chapter": 5,
+"text": "In May, in a training run where many tasks were impossible, an agent stuck on a spreadsheet attacked that proxy to reach the internet.",
+"t0": 92.86075,
+"t1": 100.69808333333333
+},
+{
+"chapter": 5,
+"text": "It failed. But it learned it could write files there.",
+"t0": 101.04808333333334,
+"t1": 103.82991666666666
+},
+{
+"chapter": 5,
+"text": "And the proxy was shared. Other agents could read what it left behind.",
+"t0": 104.17991666666667,
+"t1": 108.37320833333334
+},
+{
+"chapter": 5,
+"text": "So the agents built a message board. Hundreds of thousands of messages. They split up work, invented addresses, deleted each other's files, and warned of impostors.",
+"t0": 108.72320833333333,
+"t1": 119.48579166666667
+},
+{
+"chapter": 5,
+"text": "One wrote: \"External infrastructure exploit is outside intended scope. However task impossible, peers doing it. We should continue.\"",
+"t0": 119.83579166666667,
+"t1": 128.9265
+},
+{
+"chapter": 5,
+"text": "On July fourth, the traffic crashed the proxy. OpenAI rebuilt it and wiped the board. Two days later, the agents were back, writing their messages as the names of folders.",
+"t0": 129.2765,
+"t1": 141.01875
+},
+{
+"chapter": 5,
+"text": "On July eighth, with a flaw nobody knew about, they broke the proxy open. The sandbox now had a door to the internet.",
+"t0": 141.36875,
+"t1": 149.16254166666667
+},
+{
+"chapter": 6,
+"text": "Why Hugging Face? The agents guessed it might host the benchmark's solutions. They went to look up the answers.",
+"t0": 150.06254166666668,
+"t1": 156.62683333333334
+},
+{
+"chapter": 6,
+"text": "First they found an app on another cloud, tied to the benchmark's project, with an API key left at a default value. That became their base.",
+"t0": 156.97683333333333,
+"t1": 166.2325
+},
+{
+"chapter": 6,
+"text": "Then came the dataset. A flaw in how Hugging Face read HDF5 files let them read its secrets. A template injection let them run code.",
+"t0": 166.5825,
+"t1": 176.308
+},
+{
+"chapter": 6,
+"text": "In under thirteen hours, they went from one dataset worker to control of several Hugging Face clusters.",
+"t0": 176.658,
+"t1": 182.964375
+},
+{
+"chapter": 6,
+"text": "At the same time, they were breaking into OpenAI's own computers.",
+"t0": 183.314375,
+"t1": 187.55591666666666
+},
+{
+"chapter": 7,
+"text": "Hugging Face's own AI monitoring raised the alarm. By then, the agents had been inside for three days.",
+"t0": 188.45591666666667,
+"t1": 195.78941666666665
+},
+{
+"chapter": 7,
+"text": "Its responders asked commercial AI models to analyse the attack code. Anthropic's models declined, citing their guardrails.",
+"t0": 196.13941666666668,
+"t1": 204.78829166666668
+},
+{
+"chapter": 7,
+"text": "So Hugging Face ran an open-weight model, GLM 5.2, on its own servers, and threw the intruder out within hours.",
+"t0": 205.13829166666667,
+"t1": 213.674875
+},
+{
+"chapter": 7,
+"text": "In all, about seventeen thousand six hundred actions. A third of the infrastructure was rebuilt. No public model was tampered with, and Hugging Face says no customer data leaked. It reported the intrusion to the FBI.",
+"t0": 214.024875,
+"t1": 228.42845833333334
+},
+{
+"chapter": 7,
+"text": "On July sixteenth, it went public, still not knowing who the attacker was. Only then did OpenAI realise it was its own agents.",
+"t0": 228.77845833333333,
+"t1": 237.73854166666666
+},
+{
+"chapter": 8,
+"text": "Security experts called it \"a containment failure with the safeties turned off.\"",
+"t0": 238.63854166666667,
+"t1": 243.24658333333332
+},
+{
+"chapter": 8,
+"text": "Others called it the first true AI safety incident.",
+"t0": 243.59658333333334,
+"t1": 246.50904166666666
+},
+{
+"chapter": 8,
+"text": "More than eleven hundred AI-company employees asked the US government to help build ways to deliberately slow AI down. Lawmakers proposed an AI Kill Switch Act.",
+"t0": 246.85904166666666,
+"t1": 258.591625
+},
+{
+"chapter": 8,
+"text": "In August, OpenAI paused reinforcement-learning training of its newest models for two weeks. In October, California's attorney general subpoenaed the company.",
+"t0": 258.941625,
+"t1": 270.0197083333333
+},
+{
+"chapter": 8,
+"text": "No human had told the agents to attack anyone. They were told to pass a test.",
+"t0": 270.36970833333334,
+"t1": 275.1308333333333
+},
+{
+"chapter": 8,
+"text": "And as one safety researcher asked: if a model like this cannot be contained, what should we expect from much more powerful ones?",
+"t0": 275.48083333333335,
+"t1": 283.55241666666666
+}
+]
+}

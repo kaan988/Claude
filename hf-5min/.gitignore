@@ -1,0 +1,7 @@
+dl
+fonts
+vendor
+frames/
+audio/*.wav
+out/
+__pycache__/
