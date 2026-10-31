@@ -1,12 +1,20 @@
 # THE 20-MINUTE HEIST
 ### How $6.3 billion left Binance on October 29, 2026: a documentary script
 
-**Target runtime:** ~21–23 minutes (≈3,050 words of narration incl. quoted posts, read at ~140–145 wpm with pauses for visuals)
+**Target runtime:** ≈23:45 at a standard documentary read of **140 wpm** (≈3,100 spoken words incl. quoted posts, plus timed pauses for title cards and animations)
 **Format:** Narrated explainer. Motion-graphics on-chain visuals, screen captures of X posts, and B-roll.
 **Research cutoff:** October 31, 2026. All figures are preliminary, and the sources disagree on several of them. Binance has **not** published its post-mortem yet. Re-check every number before you publish (see the *Fact-check sheet* at the end).
 
 > Conventions: **[VISUAL]** = what's on screen · **[OST]** = on-screen text · **[SFX/MUSIC]** = audio cue · Narration is plain text.
 > Times are given in UTC with US Eastern time (EDT, UTC−4) where helpful. Daylight saving time doesn't end until Nov 1, 2026.
+
+### VOICEOVER DIRECTION: standard documentary pace
+- **Speed: 140 words per minute.** That's calm, measured and authoritative, like a Netflix or BBC true-crime explainer, not a fast YouTube read. For an AI voice, set it to about 0.9× of its default rate, since most TTS defaults run at 155–170 wpm.
+- **Sentence ends:** let them land. Leave a short breath (~0.3s) between sentences and ~0.8s between paragraphs.
+- **Big numbers** ("six point three billion dollars", "twenty minutes", "twenty-eight hops"): slow down slightly and pause about 1s afterwards so the on-screen text can land.
+- **Quoted X posts:** read them in a slightly flatter, "reading aloud" tone, and leave a 1s pause before each one while the post card animates in.
+- **Chapter title cards:** about 4s of music only before narration resumes.
+- **Calibration check:** the cold open (≈187 words) should run about **1:20 of speech**. If yours finishes in under 1:10, slow the voice down.
 
 ---
 
@@ -37,7 +45,7 @@ This is how the biggest heist in crypto history went down, minute by minute, wal
 
 ---
 
-## CHAPTER 1 — THE VAULT AND THE DOOR — 1:30–4:00
+## CHAPTER 1 — THE VAULT AND THE DOOR — 1:30–3:55
 
 **[VISUAL]** Animated diagram: a giant vault labelled *COLD STORAGE* (offline, slow, heavily guarded) beside a smaller cash drawer labelled *HOT WALLETS* (online, fast, always open). Arrows show user withdrawals flowing out of the hot wallets.
 
@@ -71,7 +79,7 @@ Keep Bitget in mind, because that dotted line is going to matter later.
 
 ---
 
-## CHAPTER 2 — TWENTY MINUTES — 4:00–7:45
+## CHAPTER 2 — TWENTY MINUTES — 3:55–6:35
 
 **[VISUAL]** A world map of chains, one glowing node per blockchain. A clock in the corner reads **20:00 UTC · Oct 29**.
 **[SFX/MUSIC]** Pulse beat, building.
@@ -118,7 +126,7 @@ First, the question every security engineer was asking that night: how do you ge
 
 ---
 
-## CHAPTER 3 — THE KEY THAT WASN'T STOLEN — 7:45–11:15
+## CHAPTER 3 — THE KEY THAT WASN'T STOLEN — 6:35–9:25
 
 **[VISUAL]** A laptop on a desk in a dark room. Its screen flickers.
 
@@ -160,7 +168,7 @@ And that is the uncomfortable lesson for the whole industry. You can lock your k
 
 ---
 
-## CHAPTER 4 — THE SCRAMBLE — 11:15–14:45
+## CHAPTER 4 — THE SCRAMBLE — 9:25–12:55
 
 **[VISUAL]** Split screen: on the left, the waterfall of outgoing transactions; on the right, an X/Twitter feed starting to light up.
 **[SFX/MUSIC]** Tempo rises. Notification pings.
@@ -221,7 +229,7 @@ The money that could be frozen was frozen, and the rest went on the move.
 
 ---
 
-## CHAPTER 5 — FOLLOW THE MONEY — 14:45–18:30
+## CHAPTER 5 — FOLLOW THE MONEY — 12:55–16:00
 
 **[VISUAL]** Dark map. A single glowing dot on the Tron network begins hopping: 1, 2, 3… a counter in the corner climbs to **28**.
 **[SFX/MUSIC]** Ticking clock, sparse piano.
@@ -269,7 +277,7 @@ As of October 30th, reports said the attacker had not yet cashed the stolen cryp
 
 ---
 
-## CHAPTER 6 — THE TIMELINE ERUPTS — 18:30–21:30
+## CHAPTER 6 — THE TIMELINE ERUPTS — 16:00–20:15
 
 **[VISUAL]** Full-screen X feed. Posts scroll by, some highlighted.
 **[SFX/MUSIC]** Lighter, almost satirical percussion.
@@ -326,7 +334,7 @@ There was a quieter debate underneath it all. Tether and Circle had frozen over 
 
 ---
 
-## CHAPTER 7 — THE MORNING AFTER — 21:30–23:45
+## CHAPTER 7 — THE MORNING AFTER — 20:15–22:45
 
 **[VISUAL]** Price charts. BTC line dips; BNB line dips further.
 **[SFX/MUSIC]** Music settles, slower.
@@ -365,7 +373,7 @@ As we record this, several big questions are still open.
 
 ---
 
-## OUTRO — 23:45–24:30
+## OUTRO — 22:45–23:45
 
 **[VISUAL]** Return to the opening: the waterfall of transactions, now slowing, then stopping. The cursor blinks.
 **[SFX/MUSIC]** Drone returns, fades.
@@ -387,7 +395,22 @@ The industry got a few things right. Stablecoin issuers froze billions in hours,
 
 ## PRODUCTION NOTES
 
-**Runtime math.** About 3,050 narration words at 140–145 wpm, plus pauses on title cards and animations, comes to roughly 21–23 minutes. Chapter timecodes are approximate. To stretch toward 25, let the on-chain animations in Chapters 2 and 5 breathe, or add an interview or expert soundbite. To trim toward 20, cut the Quinten Francois paragraph and the RUNE detail.
+**Runtime math.** Chapter timecodes come from each chapter's real spoken word count at 140 wpm, plus a 4–18s allowance per chapter for title cards and animation beats.
+
+| Section | Spoken words | Timecode |
+|---|---|---|
+| Cold open | 187 | 0:00–1:30 |
+| Ch 1 — Vault & door | 320 | 1:30–3:55 |
+| Ch 2 — Twenty minutes | 328 | 3:55–6:35 |
+| Ch 3 — The key | 370 | 6:35–9:25 |
+| Ch 4 — The scramble | 471 | 9:25–12:55 |
+| Ch 5 — Follow the money | 391 | 12:55–16:00 |
+| Ch 6 — Timeline erupts | 581 | 16:00–20:15 |
+| Ch 7 — Morning after | 326 | 20:15–22:45 |
+| Outro | 122 | 22:45–23:45 |
+| **Total** | **≈3,100** | **≈23:45** |
+
+At 145 wpm it runs about 23:00, and at 135 wpm about 24:40. Both stay inside the 20–25 minute window. To stretch toward 25, let the on-chain animations in Chapters 2 and 5 breathe, or add an interview or expert soundbite. To trim toward 20, cut the Quinten Francois paragraph and the RUNE detail.
 
 **X/Twitter posts.** Show them as **recreated cards**, not raw screenshots, and only use posts you have opened and verified yourself. Quotes marked verbatim above were drawn from post previews in search results:
 - Jeremy Allaire: https://x.com/jerallaire/status/2115916207463481846
