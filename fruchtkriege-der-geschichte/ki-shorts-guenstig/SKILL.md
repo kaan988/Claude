@@ -44,6 +44,7 @@ Testergebnisse:
 - 720p ist rund 2,3-mal schärfer. 480p bleibt auch hochgerechnet weich, Endfassungen also immer in 720p.
 - Lange, strukturierte Prompts bringen rund 65 % mehr der gewünschten Bewegung als kurze.
 - Hochformat-Trick funktioniert: 9:16-Startbild mit `resize` schicken, das gestauchte Ergebnis nach dem Upscale auf 1080×1920 zurückstrecken.
+- Ausnahme: Runde Objekte (Kugel, Planet) werden mit `resize` zum hohen Ei. Dann das 9:16-Bild mittig in ein 16:9-Bild mit unscharfen Rändern setzen, normal animieren und nach dem Upscale den 9:16-Ausschnitt herausschneiden.
 - Bild um 90° drehen funktioniert nicht, die Figuren kippen um.
 - Kling Motion Control mit Mischief-Clip als Vorlage überträgt nur Körperbewegung, keine Effekte wie Dampf oder Wasser. Ohne sich bewegenden Menschen scheitert es.
 

@@ -26,6 +26,7 @@ Andere Parameter (z. B. `aspect_ratio`) lehnt die Schnittstelle ab.
 | Langer vs. kurzer Prompt | lang: rund 65 % mehr der gewünschten Bewegung, Endzustand wird erreicht |
 | Schärfe 720p vs. 480p | 720p rund 2,3-mal schärfer; 480p bleibt auch nach KI-Upscale weich |
 | **Hochformat per `resize`** (9:16-Bild wird gestaucht, Video danach zurückgestreckt) | **funktioniert**: Proportionen und Bewegung stimmen, volles Bild ohne Ränder |
+| Hochformat per `resize` mit **runden Objekten** (Kugel, Planet, Sonne) | **scheitert**: Mischief macht sie im gestauchten Bild wieder rund, nach dem Zurückstrecken werden sie zum hohen Ei. Ein Prompt-Hinweis hilft nicht. Ausweg: 9:16-Bild mittig in ein 16:9-Bild mit unscharfen Rändern setzen, normal animieren, nach dem Upscale den 9:16-Ausschnitt herausschneiden (etwas weicher, aber formtreu) |
 | Hochformat per 90°-Drehung | **untauglich**: Figuren kippen um, weil das Modell die Schwerkraft verwechselt |
 | Bytedance Video Upscale (Higgsfield, 1080p, 30 fps, Preset `aigc`) | 1 Credit pro 5 s, echte Zwischenbilder (81 → 150 Bilder), sauberere Kanten |
 | Kostenlose Zwischenbilder per ffmpeg (16 → 32 fps) | funktioniert bei ruhiger Bewegung ohne sichtbare Geisterbilder |
