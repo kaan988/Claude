@@ -1,0 +1,766 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Point Roberts</title>
+<style>
+@font-face{font-family:'Permanent Marker';src:url(dl/fonts/PermanentMarker-Regular.ttf)}
+@font-face{font-family:'Special Elite';src:url(dl/fonts/SpecialElite-Regular.ttf)}
+@font-face{font-family:'Oswald';src:url(dl/fonts/Oswald.ttf);font-weight:200 700}
+@font-face{font-family:'Cormorant Garamond';src:url(dl/fonts/CormorantGaramond.ttf);font-weight:300 700}
+html,body{margin:0;background:#111}canvas{display:block}
+</style>
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="data/geo.js"></script>
+<script src="data/meta.js"></script>
+<script src="data/words.js"></script>
+</head><body>
+<canvas id="out" width="1920" height="1080"></canvas>
+<script>
+'use strict';
+// ───────────────────────── constants ─────────────────────────
+const W = 1920, H = 1080, FPS = 30, LON0 = -100;
+const RED = '#D9291D', RED_DK = '#7E1610', INK = '#2B2118';
+const PAPER = { ocean: '#A9C2C4', land: '#ECE2CA', coast: '#5A3E2B', border: '#7A5A40', pastel: ['#E6C1A7', '#EEDAA4', '#D2DEB8'] };
+const COUNTRY_FILL = { '124': '#E6C1A7', '840': '#EEDAA4', '484': '#D2DEB8' };
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, u) => a + (b - a) * u;
+const smooth = (a, b, x) => { const u = clamp((x - a) / (b - a)); return u * u * (3 - 2 * u); };
+const quart = u => u < .5 ? 8 * u * u * u * u : 1 - Math.pow(-2 * u + 2, 4) / 2;
+const easeOut = u => 1 - Math.pow(1 - clamp(u), 3);
+function hash(n) { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+function noise1(x) { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return lerp(hash(i), hash(i + 1), u) * 2 - 1; }
+
+// ───────────────────────── projection: web mercator world units (256 = globe), rotated so lon -100 is centre ─────────────────────────
+const wx = lon => (lon - LON0) / 360 * 256 + 128;
+const wy = lat => 128 - 256 / (2 * Math.PI) * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+const unwy = y => (2 * Math.atan(Math.exp((128 - y) * 2 * Math.PI / 256)) - Math.PI / 2) * 180 / Math.PI;
+const unwx = x => (x - 128) / 256 * 360 + LON0;
+const proj = () => d3.geoMercator().rotate([-LON0, 0]).scale(256 / (2 * Math.PI)).translate([128, 128]);
+
+// ───────────────────────── word timing (keyed to words, never seconds) ─────────────────────────
+const WORDS = PR_WORDS.words.map(w => ({ ...w, n: w.w.toLowerCase().replace(/[^a-z0-9']/g, '') }));
+function WD(key, nth = 1) {      // nth occurrence of a word (string = exact, RegExp = test)
+  let c = 0;
+  for (const w of WORDS) if (typeof key === 'string' ? w.n === key : key.test(w.n)) if (++c === nth) return w;
+  throw new Error('word not found: ' + key + ' #' + nth);
+}
+const T0 = (k, n) => WD(k, n).t0, T1 = (k, n) => WD(k, n).t1;
+const LAST = WORDS[WORDS.length - 1].t1;
+const DURATION = LAST + 1.5;
+
+// ───────────────────────── geo points ─────────────────────────
+const PR = [-123.062, 48.982];               // Point Roberts
+const TSAW = [-123.075, 49.025];             // Tsawwassen
+const BLAINE = [-122.748, 48.994];
+const CROSSING = [-123.0682, 49.0];          // Point Roberts–Boundary Bay crossing (Tyee Dr / 56 St)
+const ROUTE = [[-123.064, 48.979], [-123.0675, 48.990], CROSSING, [-123.0680, 49.018], [-123.0655, 49.034], [-123.058, 49.047],
+  [-123.048, 49.062], [-123.040, 49.077], [-123.005, 49.087], [-122.965, 49.091], [-122.925, 49.081], [-122.885, 49.066],
+  [-122.845, 49.050], [-122.808, 49.032], [-122.778, 49.014], [-122.7565, 49.0015], [-122.750, 48.994]];
+const VIEW_PR = { lon: -123.062, lat: 48.992, Z: 13.55 };
+const VIEW_PR2 = { lon: -123.066, lat: 49.004, Z: 13.0 };
+const VIEW_ROUTE = { lon: -122.905, lat: 49.032, Z: 12.25 };
+const VIEW_CONT = { lon: -108.5, lat: 47.6, Z: 5.35 };
+const VIEW_END = { lon: -110.5, lat: 46.5, Z: 4.55, sx: W * .5 };
+
+// ───────────────────────── timeline ─────────────────────────
+const EV = [];                  // SFX events {t, sfx}
+const sfx = (t, name, gain = 1) => (EV.push({ t, sfx: name, gain }), t);
+const MOVES = [];               // camera moves
+function move(t, dur, view, opts = {}) { MOVES.push({ t, dur, view: { sx: W / 2, sy: H / 2, ...view }, ...opts }); if (!opts.quiet) sfx(t, dur > 1 ? 'whoosh_in' : 'whoosh_out', dur > 1 ? 1 : .6); }
+const ITEMS = [];               // overlay items {t0, t1, draw(ctx, k, cam, t)}
+function item(t0, t1, draw, z = 0) { ITEMS.push({ t0, t1, draw, z }); }
+
+// ───────────────────────── camera ─────────────────────────
+const START = { X: wx(VIEW_PR.lon), Y: wy(VIEW_PR.lat), Z: VIEW_PR.Z - .2, sx: W / 2, sy: H / 2 };
+function camAt(t) {
+  let c = { ...START }, tPrev = 0;
+  const creep = (c, dt) => ({ ...c, Z: c.Z + Math.min(dt, 6) * .035 });   // slow push-in while holding
+  for (const m of MOVES) {
+    if (t < m.t) return creep(c, t - tPrev);
+    c = creep(c, m.t - tPrev);
+    const tgt = { X: wx(m.view.lon), Y: wy(m.view.lat), Z: m.view.Z, sx: m.view.sx, sy: m.view.sy };
+    const u = quart(clamp((t - m.t) / m.dur));
+    if (t < m.t + m.dur) {
+      // interpolate the focus in world units but under the zoom: keep the path stable by blending at the scale of the coarser zoom
+      return { X: lerp(c.X, tgt.X, uPan(u, c.Z, tgt.Z)), Y: lerp(c.Y, tgt.Y, uPan(u, c.Z, tgt.Z)), Z: lerp(c.Z, tgt.Z, u), sx: lerp(c.sx, tgt.sx, u), sy: lerp(c.sy, tgt.sy, u) };
+    }
+    c = tgt; tPrev = m.t + m.dur;
+  }
+  return creep(c, t - tPrev);
+}
+// Google-Earth style: when zooming out, the focus moves while we're high; when zooming in, it settles before we're low
+function uPan(u, za, zb) {
+  if (Math.abs(za - zb) < .5) return u;
+  const z = lerp(za, zb, u), w = q => Math.pow(2, -q);
+  return (w(z) - w(za)) / (w(zb) - w(za));
+}
+const S = c => Math.pow(2, c.Z);
+const toScreen = (c, lon, lat) => [(wx(lon) - c.X) * S(c) + c.sx, (wy(lat) - c.Y) * S(c) + c.sy];
+
+// ───────────────────────── canvases ─────────────────────────
+const out = document.getElementById('out'), octx = out.getContext('2d');
+const mk = (w = W, h = H) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const scene = mk(), sctx = scene.getContext('2d');
+const acc = mk(), actx = acc.getContext('2d');
+
+// ───────────────────────── assets ─────────────────────────
+const IMG = {};
+const loadImg = src => new Promise((ok, err) => { const i = new Image(); i.onload = () => ok(i); i.onerror = err; i.src = src; });
+async function loadAssets() {
+  for (const z of [9, 11, 13]) {
+    IMG['land' + z] = await loadImg(`tiles/land_z${z}.png`);
+    IMG['halo' + z] = await loadImg(`tiles/halo_z${z}.png`);
+  }
+  await Promise.all([
+    document.fonts.load('40px "Permanent Marker"'), document.fonts.load('28px "Special Elite"'),
+    document.fonts.load('700 54px "Oswald"'), document.fonts.load('700 16px "Cormorant Garamond"')]);
+}
+
+// procedural textures (no stock): paper fibre texture, grain frames, card texture
+let PAPERTEX, GRAINS = [], CARDTEX, STAMPHOLES;
+function makeTextures() {
+  // paper: value noise fbm + fibres, mostly near white so multiply only warms/mottles
+  const c = mk(), x = c.getContext('2d'), id = x.createImageData(W, H), d = id.data;
+  const s = 9; const gw = Math.ceil(W / s) + 2, gh = Math.ceil(H / s) + 2;
+  const octave = (cell) => { const g = new Float32Array((Math.ceil(W / cell) + 2) * (Math.ceil(H / cell) + 2)).map(() => Math.random()); return { g, cell, gw: Math.ceil(W / cell) + 2 }; };
+  const oct = [octave(220), octave(70), octave(22), octave(6)], amp = [.5, .25, .15, .1];
+  for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < W; xx++) {
+    let v = 0;
+    for (let k = 0; k < 4; k++) {
+      const o = oct[k], fx = xx / o.cell, fy = yy / o.cell, ix = fx | 0, iy = fy | 0, ux = fx - ix, uy = fy - iy;
+      const a = o.g[iy * o.gw + ix], b = o.g[iy * o.gw + ix + 1], cc = o.g[(iy + 1) * o.gw + ix], dd = o.g[(iy + 1) * o.gw + ix + 1];
+      const sx = ux * ux * (3 - 2 * ux), sy = uy * uy * (3 - 2 * uy);
+      v += amp[k] * lerp(lerp(a, b, sx), lerp(cc, dd, sx), sy);
+    }
+    const i = (yy * W + xx) * 4, l = 222 + v * 33;
+    d[i] = l + 4; d[i + 1] = l - 2; d[i + 2] = l - 14; d[i + 3] = 255;
+  }
+  x.putImageData(id, 0, 0);
+  x.globalAlpha = .07; x.strokeStyle = '#6b5638'; x.lineWidth = .7;
+  for (let i = 0; i < 2600; i++) { const px = Math.random() * W, py = Math.random() * H, a = Math.random() * 6.3, l = 6 + Math.random() * 26; x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + Math.cos(a) * l * .5 + 3, py + Math.sin(a) * l * .5, px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke(); }
+  x.globalAlpha = .05; x.fillStyle = '#8a6a3a';
+  for (let i = 0; i < 40; i++) { const g = x.createRadialGradient(0, 0, 0, 0, 0, 1); x.save(); x.translate(Math.random() * W, Math.random() * H); x.scale(40 + Math.random() * 160, 30 + Math.random() * 120); x.beginPath(); x.arc(0, 0, 1, 0, 7); x.fill(); x.restore(); }
+  PAPERTEX = c;
+  for (let k = 0; k < 6; k++) {
+    const g = mk(W / 2, H / 2), gx = g.getContext('2d'), gi = gx.createImageData(W / 2, H / 2), gd = gi.data;
+    for (let i = 0; i < gd.length; i += 4) { const v = 128 + (Math.random() + Math.random() + Math.random() - 1.5) * 150; gd[i] = gd[i + 1] = gd[i + 2] = v; gd[i + 3] = 255; }
+    gx.putImageData(gi, 0, 0); GRAINS.push(g);
+  }
+  const ct = mk(512, 512), cx = ct.getContext('2d'); cx.drawImage(PAPERTEX, 0, 0, 512, 512, 0, 0, 512, 512); CARDTEX = ct;
+  const sh = mk(700, 300), shx = sh.getContext('2d');
+  for (let i = 0; i < 1600; i++) { shx.globalAlpha = Math.random() * .9; shx.fillRect(Math.random() * 700, Math.random() * 300, 1 + Math.random() * 3, 1 + Math.random() * 2.5); }
+  for (let i = 0; i < 14; i++) { shx.globalAlpha = .5; shx.beginPath(); shx.ellipse(Math.random() * 700, Math.random() * 300, 8 + Math.random() * 30, 3 + Math.random() * 8, Math.random() * 3, 0, 7); shx.fill(); }
+  STAMPHOLES = sh;
+}
+
+// ───────────────────────── paper map pyramid (pre-rendered per zoom level) ─────────────────────────
+const LEVELS = [];
+function geoData() {
+  const G = PR_GEO, clean = fc => {         // drop Antarctica and inverted / pole-reaching rings
+    const feats = (fc.features || [fc]).filter(f => f.id !== '010' && (!f.properties || f.properties.name !== 'Antarctica'));
+    for (const f of feats) {
+      const g = f.geometry; if (!g) continue;
+      if (g.type === 'MultiPolygon') g.coordinates = g.coordinates.filter(p => d3.geoArea({ type: 'Polygon', coordinates: p }) < 2 * Math.PI);
+      if (g.type === 'Polygon' && d3.geoArea(g) > 2 * Math.PI) g.coordinates = [];
+    }
+    return { type: 'FeatureCollection', features: feats };
+  };
+  const out = {};
+  for (const r of ['50m', '10m']) {
+    const lt = G['land-' + r], ct = G['countries-' + r];
+    out['land' + r] = clean(topojson.feature(lt, lt.objects.land));
+    out['countries' + r] = clean(topojson.feature(ct, ct.objects.countries));
+    out['borders' + r] = topojson.mesh(ct, ct.objects.countries, (a, b) => a !== b);
+  }
+  out.lines = G.lines;
+  return out;
+}
+let GEO;
+function buildPyramid() {
+  GEO = geoData();
+  // sample the camera over the film to know which region each level must cover
+  const lv = [];
+  for (let z = 2.5; z <= 10; z += .5) lv.push({ z, x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 });
+  for (let t = 0; t <= DURATION; t += 1 / 60) {
+    const c = camAt(t); if (c.Z > 9.6) continue;
+    for (const L of lv) if (Math.abs(L.z - c.Z) <= .5 || (c.Z < 2.5 && L.z === 2.5)) {
+      const s = S(c), m = 260;
+      L.x0 = Math.min(L.x0, c.X - (c.sx + m) / s); L.x1 = Math.max(L.x1, c.X + (W - c.sx + m) / s);
+      L.y0 = Math.min(L.y0, c.Y - (c.sy + m) / s); L.y1 = Math.max(L.y1, c.Y + (H - c.sy + m) / s);
+    }
+  }
+  for (const L of lv) {
+    if (L.x0 > L.x1) continue;
+    const s = Math.pow(2, L.z), pw = Math.min(4800, Math.ceil((L.x1 - L.x0) * s)), ph = Math.min(4800, Math.ceil((L.y1 - L.y0) * s));
+    const sc = Math.min(1, 4800 / ((L.x1 - L.x0) * s), 4800 / ((L.y1 - L.y0) * s));
+    const c = mk(pw, ph), x = c.getContext('2d');
+    const res = L.z >= 5.5 ? '10m' : '50m';
+    const p = proj().scale(256 / (2 * Math.PI) * s * sc).translate([(128 - L.x0) * s * sc, (128 - L.y0) * s * sc]).clipExtent([[-40, -40], [pw + 40, ph + 40]]);
+    const path = d3.geoPath(p, x);
+    x.fillStyle = PAPER.ocean; x.fillRect(0, 0, pw, ph);
+    // graticule at 26%
+    x.globalAlpha = .26; x.strokeStyle = '#4d6a73'; x.lineWidth = 1; x.beginPath(); path(d3.geoGraticule().step([10, 10])()); x.stroke(); x.globalAlpha = 1;
+    // water-lining: 3 soft strokes (30, 19, 10px) under the land
+    for (const [w, a] of [[30, .16], [19, .22], [10, .3]]) { x.strokeStyle = `rgba(70,105,115,${a})`; x.lineWidth = w; x.lineJoin = 'round'; x.beginPath(); path(GEO['land' + res]); x.stroke(); }
+    x.fillStyle = PAPER.land; x.beginPath(); path(GEO['land' + res]); x.fill();
+    for (const f of GEO['countries' + res].features) {
+      x.fillStyle = COUNTRY_FILL[f.id] || PAPER.pastel[(+f.id || 7) % 3]; x.globalAlpha = .9; x.beginPath(); path(f); x.fill();
+    }
+    x.globalAlpha = 1;
+    // natural earth geographic lines (equator, tropics, date line)
+    x.setLineDash([2, 6]); x.strokeStyle = 'rgba(90,62,43,.45)'; x.lineWidth = 1.2;
+    for (const f of GEO.lines.features) { x.beginPath(); path(f); x.stroke(); }
+    // dashed borders and coast
+    x.setLineDash([7, 5]); x.strokeStyle = PAPER.border; x.lineWidth = 1.3; x.beginPath(); path(GEO['borders' + res]); x.stroke();
+    x.setLineDash([]); x.strokeStyle = PAPER.coast; x.lineWidth = 1.25; x.beginPath(); path(GEO['land' + res]); x.stroke();
+    LEVELS.push({ z: L.z, x0: L.x0, y0: L.y0, s: s * sc, canvas: c });
+  }
+}
+function drawPaper(ctx, c) {
+  // pick the level just above the camera zoom (downscale ≤ 1.41x keeps lines crisp)
+  let best = null;
+  for (const L of LEVELS) if (L.z >= c.Z - .01 && (!best || L.z < best.z)) best = L;
+  if (!best) best = LEVELS[LEVELS.length - 1];
+  const s = S(c), k = s / best.s;
+  ctx.fillStyle = PAPER.ocean; ctx.fillRect(0, 0, W, H);
+  const dx = (best.x0 - c.X) * s + c.sx, dy = (best.y0 - c.Y) * s + c.sy;
+  // crop to visible area
+  const sx0 = clamp(-dx / k, 0, best.canvas.width), sy0 = clamp(-dy / k, 0, best.canvas.height);
+  const sx1 = clamp((W - dx) / k, 0, best.canvas.width), sy1 = clamp((H - dy) / k, 0, best.canvas.height);
+  if (sx1 > sx0 && sy1 > sy0) ctx.drawImage(best.canvas, sx0, sy0, sx1 - sx0, sy1 - sy0, dx + sx0 * k, dy + sy0 * k, (sx1 - sx0) * k, (sy1 - sy0) * k);
+}
+const PAPER_LABELS = [
+  ['CANADA', -104, 56.5, 16, 9], ['UNITED STATES', -100, 41, 16, 9], ['PACIFIC  OCEAN', -134, 43, 15, 10],
+  ['BRITISH COLUMBIA', -125, 54.2, 11, 5], ['ALBERTA', -114.5, 55, 11, 5], ['WASHINGTON', -120.6, 47.3, 11, 5],
+  ['MONTANA', -109.6, 47, 11, 5], ['OREGON', -120.6, 44, 11, 5], ['Strait of Georgia', -123.9, 49.45, 10, 3], ['VANCOUVER I.', -125.8, 49.75, 9, 3]];
+function drawPaperLabels(ctx, c, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha = a * .85; ctx.fillStyle = '#4a3726'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const [txt, lon, lat, size, ls] of PAPER_LABELS) {
+    const sz = size * clamp(.8 + (c.Z - 4.5) * .12, .8, 1.25);
+    if (size < 12 && c.Z < 5) continue;
+    const [x, y] = toScreen(c, lon, lat); if (x < -300 || x > W + 300 || y < -50 || y > H + 50) continue;
+    ctx.font = `${txt === txt.toUpperCase() ? '' : 'italic '}700 ${sz}px "Cormorant Garamond"`; ctx.letterSpacing = ls + 'px';
+    ctx.fillText(txt, x, y);
+  }
+  ctx.restore();
+}
+
+// ───────────────────────── satellite ─────────────────────────
+const MOSX = z => PR_TILES[z].x0 * 256 / Math.pow(2, z) + ((-180 - LON0) / 360 * 256 + 128), MOSY = z => PR_TILES[z].y0 * 256 / Math.pow(2, z);
+function drawMosaic(ctx, c, img, z, half) {
+  const s = S(c), k = s / Math.pow(2, z) * (half ? 2 : 1);
+  const dx = (MOSX(z) - c.X) * s + c.sx, dy = (MOSY(z) - c.Y) * s + c.sy;
+  const sx0 = clamp(-dx / k, 0, img.width), sy0 = clamp(-dy / k, 0, img.height), sx1 = clamp((W - dx) / k, 0, img.width), sy1 = clamp((H - dy) / k, 0, img.height);
+  if (sx1 > sx0 + 1 && sy1 > sy0 + 1) ctx.drawImage(img, sx0, sy0, sx1 - sx0, sy1 - sy0, dx + sx0 * k, dy + sy0 * k, (sx1 - sx0) * k, (sy1 - sy0) * k);
+}
+let SEA;
+function drawSatellite(ctx, c) {
+  if (!SEA) { SEA = mk(); const x = SEA.getContext('2d'), g = x.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * .62); g.addColorStop(0, '#14304A'); g.addColorStop(1, '#0B1E31'); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+  ctx.drawImage(SEA, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+  const a11 = smooth(10.0, 11.0, c.Z), a13 = smooth(12.0, 13.0, c.Z);
+  for (const [z, a] of [[9, 1], [11, a11], [13, a13]]) {
+    if (a <= 0) continue;
+    ctx.globalAlpha = a; drawMosaic(ctx, c, IMG['halo' + z], z, true);
+  }
+  for (const [z, a] of [[9, 1], [11, a11], [13, a13]]) {
+    if (a <= 0) continue;
+    ctx.globalAlpha = a; drawMosaic(ctx, c, IMG['land' + z], z, false);
+  }
+  ctx.globalAlpha = 1;
+  // the border on the ground: 49°N where it crosses land, light dashed
+  ctx.save(); ctx.setLineDash([14, 9]); ctx.lineCap = 'butt';
+  const runs = PR_BORDER49.map(r => [...r]); runs[runs.length - 1][1] = -121.6;
+  for (const [lw, col] of [[5, 'rgba(0,0,0,.35)'], [2.4, 'rgba(243,233,210,.9)']]) {
+    ctx.lineWidth = lw; ctx.strokeStyle = col; ctx.beginPath();
+    for (const [a, b] of runs) { const p = toScreen(c, a, 49), q = toScreen(c, b, 49); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ───────────────────────── marker (boils at 8 fps) ─────────────────────────
+let NOW = 0;
+const boil = () => Math.floor(NOW * 8);
+function resample(pts, step = 26) {
+  const out = [pts[0]]; let carry = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i], L = Math.hypot(bx - ax, by - ay); let d = step - carry;
+    while (d <= L) { out.push([ax + (bx - ax) * d / L, ay + (by - ay) * d / L]); d += step; }
+    carry = L - (d - step);
+  }
+  out.push(pts[pts.length - 1]); return out;
+}
+function wobble(pts, seed, amp = 1.5) {
+  const b = boil() + seed * 17;
+  return pts.map(([x, y], i) => {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(pts.length - 1, i + 1)];
+    let nx = -(p1[1] - p0[1]), ny = p1[0] - p0[0]; const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+    const w = amp * (.55 * Math.sin(i * 1.9 + b * 2.3) + .45 * noise1(i * .7 + b * 13.1));
+    return [x + nx * w, y + ny * w];
+  });
+}
+function partial(pts, p) {          // first fraction p of a polyline by length
+  if (p >= 1) return pts; if (p <= 0) return [pts[0]];
+  let tot = 0; const seg = []; for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(l); tot += l; }
+  let want = tot * p; const out = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    if (want >= seg[i - 1]) { out.push(pts[i]); want -= seg[i - 1]; }
+    else { const u = want / seg[i - 1]; out.push([lerp(pts[i - 1][0], pts[i][0], u), lerp(pts[i - 1][1], pts[i][1], u)]); break; }
+  }
+  return out;
+}
+function smoothPath(ctx, pts) {
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); }
+  const l = pts[pts.length - 1]; ctx.lineTo(l[0], l[1]);
+}
+function marker(ctx, pts, prog, { w = 8, seed = 1, dash = null, color = RED } = {}) {
+  if (prog <= 0 || pts.length < 2) return;
+  const p = wobble(resample(partial(resample(pts, 6), prog), 26), seed);
+  if (p.length < 2) return;
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = RED_DK; ctx.lineWidth = w + 1.6; smoothPath(ctx, p); ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = w; smoothPath(ctx, p); ctx.stroke();
+  ctx.translate(-w * .18, -w * .18); ctx.strokeStyle = 'rgba(255,175,165,.3)'; ctx.lineWidth = w * .34; smoothPath(ctx, p); ctx.stroke();
+  ctx.restore();
+}
+function circlePts(cx, cy, rx, ry, turns = 1.12, rot = -.5) {
+  const pts = [], n = 90;
+  for (let i = 0; i <= n; i++) { const a = rot + i / n * turns * 2 * Math.PI, g = 1 + .05 * (i / n) + .025 * Math.sin(i / n * 9); pts.push([cx + Math.cos(a) * rx * g, cy + Math.sin(a) * ry * g]); }
+  return pts;
+}
+function handwrite(ctx, txt, x, y, prog, { size = 44, rot = -.05, align = 'left', color = RED, seed = 3 } = {}) {
+  if (prog <= 0) return;
+  const b = boil() + seed * 7;
+  ctx.save(); ctx.translate(x + noise1(b * 3.3) * .7, y + noise1(b * 5.1) * .7); ctx.rotate(rot + noise1(b * 2.7) * .006);
+  ctx.font = `${size}px "Permanent Marker"`; ctx.textBaseline = 'middle'; ctx.textAlign = align;
+  const tw = ctx.measureText(txt).width, x0 = align === 'center' ? -tw / 2 : align === 'right' ? -tw : 0;
+  ctx.beginPath(); ctx.rect(x0 - 10, -size, (tw + 20) * clamp(prog), size * 2); ctx.clip();
+  ctx.fillStyle = RED_DK; ctx.fillText(txt, 1, 1.2); ctx.fillStyle = color; ctx.fillText(txt, 0, 0);
+  ctx.restore();
+}
+
+// ───────────────────────── paper props ─────────────────────────
+// spring pop-in from 55% (damping 0.48, 19 rad/s) with rotation settle; exit shrinks + fades in 0.22 s
+function spring(t) {
+  if (t <= 0) return { s: .55, r: 1, a: 0 };
+  const z = .48, w = 19, wd = w * Math.sqrt(1 - z * z), e = Math.exp(-z * w * t);
+  const osc = e * (Math.cos(wd * t) + z / Math.sqrt(1 - z * z) * Math.sin(wd * t));
+  return { s: 1 - .45 * osc, r: osc, a: clamp(t / .06) };
+}
+function popXf(t, t0, t1) {
+  const sp = spring(t - t0); let s = sp.s, a = sp.a;
+  if (t1 != null && t > t1) { const u = clamp((t - t1) / .22); s *= 1 - .45 * u; a *= 1 - u; }
+  return { s, a, r: sp.r };
+}
+function withPop(ctx, t, t0, t1, x, y, rot, fn) {
+  const p = popXf(t, t0, t1); if (p.a <= 0) return;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot + p.r * .1); ctx.scale(p.s, p.s); ctx.globalAlpha = p.a; fn(ctx); ctx.restore();
+}
+function paperRect(ctx, x, y, w, h, fill = '#F3E9D2') {
+  ctx.save(); ctx.shadowColor = 'rgba(30,18,8,.38)'; ctx.shadowBlur = 18; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 8;
+  ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); ctx.restore();
+  ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .55; ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.drawImage(CARDTEX, x, y, Math.max(w, 300), Math.max(h, 300)); ctx.restore();
+}
+function tape(ctx, x, y, w = 96, h = 30, rot = -.06) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = 'rgba(233,224,192,.78)';
+  ctx.beginPath(); ctx.moveTo(-w / 2, -h / 2);
+  for (let i = 0; i <= 6; i++) ctx.lineTo(-w / 2 + w * i / 6, -h / 2 + (i % 2) * 2);
+  for (let i = 0; i <= 5; i++) ctx.lineTo(w / 2 + (i % 2 ? 3 : 0), -h / 2 + h * i / 5);
+  for (let i = 6; i >= 0; i--) ctx.lineTo(-w / 2 + w * i / 6, h / 2 - (i % 2) * 2);
+  for (let i = 5; i >= 0; i--) ctx.lineTo(-w / 2 - (i % 2 ? 3 : 0), -h / 2 + h * i / 5);
+  ctx.fill(); ctx.strokeStyle = 'rgba(120,100,60,.15)'; ctx.stroke(); ctx.restore();
+}
+function typed(txt, t, tStart, cps = 26) { return txt.slice(0, Math.max(0, Math.floor((t - tStart) * cps))); }
+// cream tag with colour bar + tape; title Oswald 700 54px, subtitle Special Elite 28px typed
+function tagItem({ anchor, title, sub, bar, tIn, tSub, tOut, dx = 40, dy = -150, rot = -.03 }) {
+  sfx(tIn, 'paper_slide'); sfx(tSub, 'typing', .8);
+  item(tIn, tOut + .25, (ctx, cam, t) => {
+    const [ax, ay] = toScreen(cam, ...anchor), x = ax + dx, y = ay + dy;
+    const pa = popXf(t, tIn, tOut).a;
+    // pin + thread to the place
+    ctx.save(); ctx.globalAlpha = pa; ctx.strokeStyle = 'rgba(20,14,8,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(x, y + 30); ctx.stroke();
+    ctx.fillStyle = '#F3E9D2'; ctx.beginPath(); ctx.arc(ax, ay, 7, 0, 7); ctx.fill(); ctx.fillStyle = bar; ctx.beginPath(); ctx.arc(ax, ay, 4.5, 0, 7); ctx.fill(); ctx.restore();
+    withPop(ctx, t, tIn, tOut, x, y, rot, c => {
+      c.font = '700 54px Oswald'; const tw = c.measureText(title).width;
+      c.font = '28px "Special Elite"'; const sw = c.measureText(sub).width;
+      const w = Math.max(tw, sw) + 70, h = 128;
+      paperRect(c, 0, 0, w, h); c.fillStyle = bar; c.fillRect(0, 0, 14, h);
+      c.fillStyle = INK; c.textBaseline = 'alphabetic'; c.font = '700 54px Oswald'; c.letterSpacing = '1px'; c.fillText(title, 36, 64);
+      c.font = '28px "Special Elite"'; c.letterSpacing = '0px'; c.fillStyle = '#4a3a2a'; c.fillText(typed(sub, t, tSub), 37, 104);
+      tape(c, w / 2, -4, 100, 30, .05);
+    });
+  }, 5);
+}
+// black tag that counts up
+function countTag({ x, y, tIn, tCount0, tCount1, tOut, to, unit, sub }) {
+  sfx(tIn, 'paper_slide');
+  item(tIn, tOut + .25, (ctx, cam, t) => withPop(ctx, t, tIn, tOut, x, y, .025, c => {
+    const v = Math.round(to * easeOut((t - tCount0) / (tCount1 - tCount0)));
+    paperRect(c, 0, 0, 320, 150, '#171513');
+    c.fillStyle = '#F3E9D2'; c.font = '700 84px Oswald'; c.textBaseline = 'alphabetic'; c.fillText(String(v), 30, 98);
+    const nw = c.measureText(String(to)).width; c.font = '700 40px Oswald'; c.fillStyle = RED; c.fillText(unit, 30 + nw + 14, 98);
+    c.font = '24px "Special Elite"'; c.fillStyle = '#cfc6b4'; c.fillText(sub, 32, 132);
+    tape(c, 160, -4, 90, 28, -.04);
+  }), 6);
+}
+
+// ───────────────────────── the film ─────────────────────────
+function buildTimeline() {
+  const lead = .08;   // events land just on the word
+  // 1 ─ hook: tight on satellite; circle on "town", handwritten word beside it
+  const tTown = T0('town') - lead;
+  sfx(tTown, 'marker');
+  item(tTown, T0('drive') + .2, (ctx, cam, t) => {
+    const [x, y] = toScreen(cam, -123.061, 48.982), s = S(cam) / Math.pow(2, 13.55);
+    const fade = 1 - clamp((t - T0('drive')) / .2);
+    ctx.save(); ctx.globalAlpha = fade;
+    marker(ctx, circlePts(x, y, 330 * s, 175 * s), easeOut((t - tTown) / .55), { seed: 2 });
+    ctx.restore();
+  }, 3);
+  const tUSA = T1('town');
+  sfx(tUSA, 'scribble', .7);
+  item(tUSA, T0('point') + .2, (ctx, cam, t) => {
+    const [x, y] = toScreen(cam, -123.061, 48.982), s = S(cam) / Math.pow(2, 13.55);
+    const fade = 1 - clamp((t - T0('point')) / .2);
+    ctx.save(); ctx.globalAlpha = fade; handwrite(ctx, 'U.S.A.?', x + 350 * s, y - 120 * s, (t - tUSA) / .45, { size: 58, rot: -.08 });
+    marker(ctx, [[x + 345 * s, y - 80 * s], [x + 300 * s, y - 40 * s], [x + 270 * s, y - 12 * s]], (t - tUSA - .3) / .25, { w: 7, seed: 4 });
+    ctx.restore();
+  }, 3);
+  const tFour = T0('four') - lead;
+  sfx(tFour, 'marker', .6);
+  item(tFour, T0('point') + .2, (ctx, cam, t) => {
+    const fade = 1 - clamp((t - T0('point')) / .2);
+    ctx.save(); ctx.globalAlpha = fade;
+    for (let i = 0; i < 4; i++) {          // four tally strokes on the border line
+      const [bx, by] = toScreen(cam, -123.083 + i * .0115, 49.0);
+      marker(ctx, [[bx - 8, by - 36], [bx + 8, by + 36]], (t - tFour - i * .1) / .12, { w: 7, seed: 10 + i });
+    }
+    ctx.restore();
+  }, 3);
+  // 2 ─ name the places
+  move(T0('this', 2), 1.6, VIEW_PR2, { quiet: true });
+  tagItem({ anchor: [-123.055, 48.978], title: 'POINT ROBERTS', sub: 'Washington, USA · pop. 1,191', bar: '#2F5D8C', tIn: T0('point') - lead, tSub: T0('washington') - lead, tOut: T0('drive'), dx: 90, dy: -40, rot: -.03 });
+  tagItem({ anchor: [-123.07, 49.03], title: 'TSAWWASSEN', sub: 'Delta, British Columbia', bar: '#B8322A', tIn: T0(/^(tsaw|tuh|tawa|tawwa|tswa)/) - lead, tSub: T0('peninsula') - lead, tOut: T0('drive'), dx: -620, dy: -160, rot: .025 });
+  // 3 ─ the key number: dashed route through Canada + counting black tag
+  move(T0('drive') - .05, .95, VIEW_ROUTE);
+  const tOut = T0('out') - lead, tCan = T1('canada');
+  sfx(tOut, 'marker');
+  item(tOut, T0('blame') + .5, (ctx, cam, t) => {
+    const pts = ROUTE.map(p => toScreen(cam, ...p));
+    ctx.save(); ctx.globalAlpha = 1 - clamp((t - T0('blame')) / .3);
+    marker(ctx, pts, easeOut((t - tOut) / (tCan - tOut + .1)), { w: 7, seed: 5, dash: [18, 14] });
+    ctx.restore();
+  }, 2);
+  countTag({ x: 1500, y: 850, tIn: T0(/^(forty|40)$/) - lead, tCount0: T0(/^(forty|40)$/), tCount1: tCan, tOut: T0('blame'), to: 40, unit: 'KM', sub: 'through Canada' });
+  // 4 ─ context: Google Earth pull-out to the paper continent, the 49th parallel in marker
+  move(T0('blame') - .05, 1.3, VIEW_CONT);
+  const t49 = T0(/^(fortyninth|49th|ninth)$/) - lead, t49e = t49 + .95;
+  sfx(t49, 'marker');
+  const P49 = []; for (let lon = -95.15; lon >= -123.32; lon -= .5) P49.push([lon, 49]); P49.push([-123.32, 49]);
+  item(t49, T0('this', 3) + 1.2, (ctx, cam, t) => {
+    const fade = 1 - clamp((t - T0('this', 3) - .7) / .4);
+    ctx.save(); ctx.globalAlpha = fade;
+    marker(ctx, P49.map(p => toScreen(cam, ...p)), easeOut((t - t49) / (t49e - t49)), { w: 9, seed: 7 });
+    const [lx, ly] = toScreen(cam, -103.5, 49);
+    handwrite(ctx, '49°N', lx, ly - 44, (t - t49e + .2) / .4, { size: 60, rot: -.04, seed: 8 });
+    ctx.restore();
+  }, 3);
+  sfx(t49e - .2, 'scribble', .6);
+  const t1846 = T0(/^(eighteen|1846)/) - lead;
+  sfx(t1846, 'scribble', .8);
+  item(t1846, T0('this', 3) + 1.2, (ctx, cam, t) => {
+    const fade = 1 - clamp((t - T0('this', 3) - .7) / .4);
+    const [lx, ly] = toScreen(cam, -116.5, 49);
+    ctx.save(); ctx.globalAlpha = fade;
+    handwrite(ctx, '1846', lx, ly + 62, (t - t1846) / .4, { size: 54, rot: -.03, seed: 9 });
+    handwrite(ctx, 'Oregon Treaty', lx + 150, ly + 66, (t - T0('oregon') + lead) / .55, { size: 36, rot: -.03, seed: 11 });
+    ctx.restore();
+  }, 3);
+  sfx(T0('oregon') - lead, 'scribble', .6);
+  // dive straight back in
+  move(T0('this', 3) - .1, 1.35, { lon: -123.05, lat: 49.0, Z: 12.9 });
+  const tSouth = T0('south') - lead;
+  sfx(tSouth, 'marker');
+  item(tSouth, T0('so') + .3, (ctx, cam, t) => {
+    const [x, y] = toScreen(cam, -123.0, 49.0), [px, py] = toScreen(cam, -123.045, 48.985);
+    ctx.save(); ctx.globalAlpha = 1 - clamp((t - T0('so')) / .25);
+    marker(ctx, [[x + 40, y - 160], [x + 10, y - 60], [px + 70, py - 30]], easeOut((t - tSouth) / .3), { w: 8, seed: 12 });
+    marker(ctx, [[px + 40, py - 60], [px + 70, py - 30], [px + 95, py - 66]], easeOut((t - tSouth - .3) / .15), { w: 8, seed: 13 });
+    handwrite(ctx, 'south of 49°', x + 60, y - 190, (t - tSouth - .1) / .4, { size: 44, seed: 14 });
+    ctx.restore();
+  }, 3);
+  // 5 ─ consequence: calendar page flips to GRADE 4, a clock for the 40-minute ride, BLAINE tag
+  move(T0('so') - .05, .9, { ...VIEW_ROUTE, Z: 12.15, sx: W * .4 });
+  const tCal = T0(/^(fourth|4th)$/) - lead, tFlip = T0('grade') - lead, tProps = T0(/^(no)$/) ;
+  sfx(tCal, 'paper_slide'); sfx(tFlip + .05, 'page_turn');
+  item(tCal, tProps + .3, (ctx, cam, t) => withPop(ctx, t, tCal, tProps, 1540, 170, .05, c => calendar(c, t, tFlip)), 6);
+  const tClock = T0('minutes') - lead;
+  sfx(tClock, 'paper_slide'); sfx(tClock + .15, 'clock', .8);
+  item(tClock, tProps + .3, (ctx, cam, t) => withPop(ctx, t, tClock, tProps, 1700, 640, -.04, c => clock(c, t, tClock + .15)), 6);
+  const tRide = T0('ride') - lead;
+  sfx(tRide, 'marker', .8);
+  item(tRide, tProps + .3, (ctx, cam, t) => {
+    ctx.save(); ctx.globalAlpha = 1 - clamp((t - tProps) / .25);
+    marker(ctx, ROUTE.map(p => toScreen(cam, ...p)), easeOut((t - tRide) / (T0('blaine') - tRide)), { w: 7, seed: 15, dash: [18, 14] });
+    ctx.restore();
+  }, 2);
+  tagItem({ anchor: BLAINE, title: 'BLAINE', sub: 'Washington, USA', bar: '#2F5D8C', tIn: T0('blaine') - lead, tSub: T1('blaine'), tOut: tProps, dx: -330, dy: 90, rot: .02 });
+  // 6 ─ local twist: torn strips with highlighter
+  move(tProps - .05, .9, { lon: -123.058, lat: 48.989, Z: 13.5, sx: W * .36 });
+  const tS1 = T0(/^(no)$/) - lead, tS2 = T0('but') - lead, tThen = T0('then');
+  strip({ x: 1050, y: 300, rot: -.025, text: 'NO HOSPITAL.  ONE GROCERY STORE.', tIn: tS1, tOut: tThen, hl: [[0, 12, T0('hospital')], [14, 33, T0('store')]] });
+  strip({ x: 1010, y: 520, rot: .018, text: '40× MORE CANADIAN MAILBOXES', tIn: tS2, tOut: tThen, hl: [[0, 3, T0('times', 2)]] });
+  strip({ x: 1080, y: 690, rot: -.012, text: 'THAN RESIDENTS.', tIn: T0('people') - lead, tOut: tThen, hl: [[0, 14, T0('live')]] });
+  // 7 ─ the story: stamp 2020, split frame, tracker card, dotted path that stops and then crosses
+  move(tThen - .05, .9, { lon: -122.93, lat: 49.03, Z: 12.3, sx: W * .44 });
+  const tStamp = T0(/^(twenty|2020)/) - .02;
+  sfx(tStamp, 'impact');
+  item(tStamp, T0(/^(eighty|80)$/) + .3, (ctx, cam, t) => stamp(ctx, t, tStamp, T0(/^(eighty|80)$/)), 8);
+  const tSplit = T0('border', 3) - lead, tClosed = T0('closed') - lead, tUntil = T0('until') - lead, tReopen = T0('reopened') - lead, tIts = T0("it's", 2);
+  sfx(tSplit, 'whoosh_out', .5);
+  item(tSplit, tIts + 1.6, (ctx, cam, t) => splitTint(ctx, cam, t, tSplit, tIts), 1);
+  sfx(tSplit + .1, 'paper_slide');
+  item(tSplit, tIts + .3, (ctx, cam, t) => withPop(ctx, t, tSplit + .1, tIts, 1440, 150, .02, c => tracker(c, t, { tUntil, tReopen, tEighty: T0(/^(eighty|80)$/) - lead })), 7);
+  sfx(T0(/^(eighty|80)$/) - lead, 'marker', .6);
+  const tDot0 = tSplit + .2;
+  sfx(tClosed + .15, 'marker');
+  sfx(tReopen, 'whoosh_in', .5);
+  item(tDot0, tIts + .4, (ctx, cam, t) => dottedTrip(ctx, cam, t, { tDot0, tClosed, tReopen, tIts }), 4);
+  // 8 ─ the ending: pull all the way back, both sides tinted, red circle, end card scribbled out
+  move(tIts - .05, 1.6, VIEW_END);
+  const tCalled = T0('called') - lead, tBest = T0('best') - lead, tGated = T0('gated') - lead;
+  sfx(tCalled, 'marker');
+  item(tCalled, DURATION + 1, (ctx, cam, t) => {
+    const [x, y] = toScreen(cam, -123.06, 48.99);
+    marker(ctx, circlePts(x, y, 30, 24), easeOut((t - tCalled) / .45), { w: 7, seed: 21 });
+  }, 3);
+  sfx(T0(/^america/) - lead, 'paper_slide');
+  item(T0(/^america/) - lead, DURATION + 1, (ctx, cam, t) => withPop(ctx, t, T0(/^america/) - lead, null, 1120, 600, -.035, c => endCard(c, t, tBest, tGated)), 9);
+  sfx(tBest, 'scribble'); sfx(tGated, 'marker');
+}
+
+// props ─────────────
+function calendar(c, t, tFlip) {
+  const w = 250, h = 290;
+  // page underneath (GRADE 4)
+  const page = (num, sub) => { paperRect(c, 0, 0, w, h, '#F7F1E3'); c.fillStyle = '#B8322A'; c.fillRect(0, 0, w, 62);
+    c.fillStyle = '#F3E9D2'; c.font = '700 34px Oswald'; c.textAlign = 'center'; c.letterSpacing = '4px'; c.fillText('GRADE', w / 2, 45);
+    c.fillStyle = INK; c.font = '700 150px Oswald'; c.letterSpacing = '0px'; c.fillText(num, w / 2, 220); c.font = '22px "Special Elite"'; c.fillStyle = '#5a4a3a'; c.fillText(sub, w / 2, 262); c.textAlign = 'left'; };
+  page('4', 'bus to Blaine');
+  const u = clamp((t - tFlip) / .42);
+  if (u < 1) {                       // top page flips up over the binding
+    c.save(); const k = Math.cos(u * Math.PI);
+    if (k > 0) { c.translate(0, 0); c.scale(1, k); page('3', 'school at home'); }
+    else { c.scale(1, k); paperRect(c, 0, 0, w, h, '#E9DFC8'); }
+    c.restore();
+  }
+  for (let i = 0; i < 5; i++) { c.fillStyle = '#3a3a3a'; c.beginPath(); c.arc(35 + i * 45, 2, 7, 0, 7); c.fill(); c.fillStyle = '#ddd'; c.fillRect(33 + i * 45, -14, 4, 18); }
+}
+function clock(c, t, t0) {
+  const r = 110;
+  c.save(); c.shadowColor = 'rgba(30,18,8,.38)'; c.shadowBlur = 18; c.shadowOffsetY = 8; c.fillStyle = '#F3E9D2'; c.beginPath(); c.arc(0, 0, r, 0, 7); c.fill(); c.restore();
+  c.lineWidth = 7; c.strokeStyle = INK; c.beginPath(); c.arc(0, 0, r - 4, 0, 7); c.stroke();
+  for (let i = 0; i < 60; i++) { const a = i / 60 * 2 * Math.PI, l = i % 5 ? 7 : 16; c.lineWidth = i % 5 ? 2 : 4; c.beginPath(); c.moveTo(Math.sin(a) * (r - 14), -Math.cos(a) * (r - 14)); c.lineTo(Math.sin(a) * (r - 14 - l), -Math.cos(a) * (r - 14 - l)); c.stroke(); }
+  const u = easeOut((t - t0) / 1.1), a = u * 40 / 60 * 2 * Math.PI;
+  c.fillStyle = 'rgba(217,41,29,.35)'; c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, r - 32, -Math.PI / 2, -Math.PI / 2 + a); c.fill();
+  c.strokeStyle = RED; c.lineWidth = 7; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.sin(a) * (r - 30), -Math.cos(a) * (r - 30)); c.stroke();
+  c.strokeStyle = INK; c.lineWidth = 9; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.sin(.3) * 50, -Math.cos(.3) * 50); c.stroke();
+  c.fillStyle = INK; c.beginPath(); c.arc(0, 0, 9, 0, 7); c.fill();
+  // label
+  c.save(); c.translate(-80, r + 18); c.rotate(.03); paperRect(c, 0, 0, 170, 64, '#171513'); c.fillStyle = '#F3E9D2'; c.font = '700 44px Oswald';
+  c.fillText(String(Math.round(40 * u)).padStart(2, '0'), 18, 50); c.fillStyle = RED; c.font = '700 30px Oswald'; c.fillText('MIN', 82, 50); c.restore();
+}
+function strip({ x, y, rot, text, tIn, tOut, hl }) {
+  sfx(tIn, 'paper_slide', .9);
+  for (const h of hl) sfx(h[2] - .08, 'highlighter', .7);
+  // jagged torn edges, seeded per strip
+  const seed = text.length * 3.1;
+  item(tIn, tOut + .3, (ctx, cam, t) => withPop(ctx, t, tIn, tOut, x, y, rot, c => {
+    c.font = '700 46px Oswald'; c.letterSpacing = '1px'; const tw = c.measureText(text).width, w = tw + 70, h = 84;
+    c.save(); c.shadowColor = 'rgba(30,18,8,.35)'; c.shadowBlur = 14; c.shadowOffsetY = 6; c.fillStyle = '#F8F3E6';
+    c.beginPath(); c.moveTo(0, 0);
+    for (let i = 0; i <= 40; i++) c.lineTo(w * i / 40, (hash(seed + i) * 7) - 2);
+    for (let i = 0; i <= 6; i++) c.lineTo(w + hash(seed + 50 + i) * 9 - 4, h * i / 6);
+    for (let i = 40; i >= 0; i--) c.lineTo(w * i / 40, h - hash(seed + 99 + i) * 8 + 2);
+    for (let i = 6; i >= 0; i--) c.lineTo(hash(seed + 150 + i) * 9 - 4, h * i / 6);
+    c.fill(); c.restore();
+    c.save(); c.globalCompositeOperation = 'multiply'; c.globalAlpha = .4; c.drawImage(CARDTEX, 0, 0, w, h); c.restore();
+    // yellow highlighter swipes under the key words
+    for (const [a, b, th] of hl) {
+      const x0 = 35 + c.measureText(text.slice(0, a)).width - 6, x1 = 35 + c.measureText(text.slice(0, b)).width + 6, u = easeOut((t - th + .08) / .28);
+      if (u <= 0) continue;
+      c.save(); c.globalCompositeOperation = 'multiply'; c.fillStyle = 'rgba(255,222,0,.75)';
+      c.beginPath(); c.moveTo(x0, 22); c.lineTo(x0 + (x1 - x0) * u, 19 + hash(seed + a) * 4); c.lineTo(x0 + (x1 - x0) * u + 4, 66); c.lineTo(x0 - 3, 68); c.fill(); c.restore();
+    }
+    c.fillStyle = INK; c.textBaseline = 'alphabetic'; c.fillText(text, 35, 60);
+  }), 6);
+}
+function stamp(ctx, t, t0, tOut) {
+  const u = clamp((t - t0) / .11), s = lerp(2.3, 1, u * u), a = clamp((t - t0) / .05) * (1 - clamp((t - tOut) / .22));
+  if (a <= 0) return;
+  ctx.save(); ctx.translate(560, 330); ctx.rotate(-.13); ctx.scale(s, s); ctx.globalAlpha = a * .9;
+  const st = mk(560, 250), c = st.getContext('2d');
+  c.strokeStyle = c.fillStyle = '#C8241A'; c.lineWidth = 10; c.strokeRect(10, 10, 540, 230); c.lineWidth = 4; c.strokeRect(26, 26, 508, 198);
+  c.font = '700 150px Oswald'; c.textAlign = 'center'; c.letterSpacing = '8px'; c.fillText('2020', 280, 190);
+  c.font = '700 30px Oswald'; c.letterSpacing = '10px'; c.fillText('MARCH', 280, 62);
+  c.globalCompositeOperation = 'destination-out'; c.drawImage(STAMPHOLES, (hash(3) * 100) | 0, 0, 560, 250, 0, 0, 560, 250);
+  ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(st, -280, -125);
+  ctx.restore();
+}
+function splitTint(ctx, cam, t, t0, tIts) {
+  const u = easeOut((t - t0) / .5), out = clamp((t - tIts - .4) / .9);
+  if (u <= 0 || out >= 1) return;
+  const [, y49] = toScreen(cam, -122.9, 49.0);
+  ctx.save(); ctx.globalAlpha = (1 - out);
+  const wv = W * u;
+  ctx.fillStyle = 'rgba(217,41,29,.2)'; ctx.fillRect(0, 0, wv, clamp(y49, 0, H));
+  ctx.fillStyle = 'rgba(47,93,140,.24)'; ctx.fillRect(W - wv, clamp(y49, 0, H), wv, H);
+  // the split line itself
+  ctx.strokeStyle = 'rgba(243,233,210,.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, y49); ctx.lineTo(W, y49); ctx.stroke();
+  ctx.font = '700 44px Oswald'; ctx.letterSpacing = '10px'; ctx.globalAlpha = (1 - out) * clamp((t - t0 - .3) / .3);
+  ctx.fillStyle = 'rgba(243,233,210,.92)'; ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 8;
+  ctx.textAlign = 'right'; ctx.fillText('CANADA', W - 70, y49 - 34); ctx.fillText('UNITED STATES', W - 70, y49 + 74);
+  ctx.restore();
+}
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function tracker(c, t, { tUntil, tReopen, tEighty }) {
+  const w = 420, h = 300;
+  paperRect(c, 0, 0, w, h); c.fillStyle = INK; c.fillRect(0, 0, w, 50);
+  c.fillStyle = '#F3E9D2'; c.font = '700 30px Oswald'; c.letterSpacing = '4px'; c.fillText('BORDER  TRACKER', 22, 37);
+  const k = easeOut((t - tUntil) / (tReopen - tUntil)), m = Math.round(17 * k), mi = 2 + m;   // MAR 2020 → AUG 2021
+  const date = `${MONTHS[mi % 12]} ${2020 + Math.floor(mi / 12)}`;
+  const mins = Math.floor((t * (k > 0 && k < 1 ? 900 : 1)) % 1440), time = `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+  c.letterSpacing = '0px'; c.font = '24px "Special Elite"'; c.fillStyle = '#5a4a3a';
+  c.fillText('DATE', 24, 92); c.fillText('TIME', 24, 130); c.fillText('BORDER', 24, 168);
+  c.fillStyle = INK; c.font = '30px "Special Elite"'; c.fillText(date, 160, 93); c.fillText(time, 160, 131);
+  const open = t >= tReopen; c.fillStyle = open ? '#2F7A3A' : '#B8322A'; c.fillText(open ? 'OPEN' : 'CLOSED', 160, 169);
+  c.fillStyle = INK; c.font = '700 74px Oswald'; c.fillText(String(m), 24, 262); c.font = '22px "Special Elite"'; c.fillStyle = '#5a4a3a'; c.fillText('months shut', 24 + (m > 9 ? 84 : 46), 260);
+  const e = clamp((t - tEighty) / .3);
+  if (e > 0) {
+    c.save(); c.globalAlpha = e; c.globalCompositeOperation = 'multiply'; c.fillStyle = 'rgba(255,222,0,.75)'; c.fillRect(226, 212, 176 * easeOut(e), 50); c.restore();
+    c.save(); c.globalAlpha = e; c.fillStyle = '#B8322A'; c.font = '700 44px Oswald'; c.fillText('−80%', 236, 254); c.font = '18px "Special Elite"'; c.fillStyle = '#5a4a3a'; c.fillText('business', 330, 252); c.restore();
+  }
+}
+function dottedTrip(ctx, cam, t, { tDot0, tClosed, tReopen, tIts }) {
+  const fade = 1 - clamp((t - tIts) / .35);
+  const pts = resample(ROUTE.map(p => toScreen(cam, ...p)), 4);
+  let L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const tot = L[L.length - 1];
+  const [cx, cy] = toScreen(cam, ...CROSSING); let iC = 0; for (let i = 0; i < pts.length; i++) if (Math.hypot(pts[i][0] - cx, pts[i][1] - cy) < Math.hypot(pts[iC][0] - cx, pts[iC][1] - cy)) iC = i;
+  const stop = L[iC] - 16;
+  let d = stop * easeOut((t - tDot0) / (tClosed - tDot0 + .1));
+  if (t > tReopen) d = stop + (tot - stop) * quart(clamp((t - tReopen) / 2.6));
+  ctx.save(); ctx.globalAlpha = fade;
+  ctx.fillStyle = '#F3E9D2'; ctx.strokeStyle = RED_DK;
+  for (let s = 0; s < d; s += 15) { let i = 0; while (i < L.length - 1 && L[i] < s) i++; ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], 4.2, 0, 7); ctx.fillStyle = RED; ctx.fill(); }
+  // X at the crossing while closed
+  const xa = clamp((t - tClosed - .1) / .25) * (1 - clamp((t - tReopen) / .2));
+  if (xa > 0) { ctx.save(); ctx.globalAlpha = fade * (t > tReopen ? 1 - clamp((t - tReopen) / .2) : 1); marker(ctx, [[cx - 26, cy - 26], [cx + 26, cy + 26]], (t - tClosed - .1) / .12, { w: 8, seed: 31 }); marker(ctx, [[cx + 26, cy - 26], [cx - 26, cy + 26]], (t - tClosed - .25) / .12, { w: 8, seed: 32 }); ctx.restore(); }
+  // moving marker
+  let i = 0; while (i < L.length - 1 && L[i] < d) i++;
+  const [mx, my] = pts[i], pulse = 1 + .15 * Math.sin(t * 9);
+  ctx.fillStyle = '#F3E9D2'; ctx.beginPath(); ctx.arc(mx, my, 15 * pulse, 0, 7); ctx.fill();
+  ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(mx, my, 10 * pulse, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function endCard(c, t, tBest, tGated) {
+  const w = 700, h = 340;
+  paperRect(c, 0, 0, w, h); c.fillStyle = RED; c.fillRect(0, 0, w, 14);
+  c.fillStyle = INK; c.font = '700 54px Oswald'; c.letterSpacing = '2px'; c.fillText('POINT ROBERTS, WA', 34, 86);
+  c.font = '28px "Special Elite"'; c.letterSpacing = '0px'; c.fillStyle = '#5a4a3a'; c.fillText('a U.S. town reached through Canada', 36, 128);
+  c.fillStyle = INK; c.font = '700 84px Oswald'; c.fillText('1,191', 36, 232); c.font = '28px "Special Elite"'; c.fillStyle = '#5a4a3a'; c.fillText('residents', 262, 228);
+  // scribble out the number, then the real punchline in marker
+  const sp = []; for (let i = 0; i < 7; i++) sp.push([32 + (i % 2) * 200 + i * 2, 178 + i * 9]);
+  marker(c, sp, (t - tBest) / .4, { w: 9, seed: 41 });
+  handwrite(c, 'best gated community', 34, 292, (t - tGated) / .55, { size: 44, rot: -.03, seed: 42 });
+  tape(c, w / 2, -6, 110, 32, -.03);
+}
+
+// ───────────────────────── frame (pure function of time) ─────────────────────────
+function drawScene(t) {
+  NOW = t;
+  const ctx = sctx, cam = camAt(t);
+  // handheld drift ±2px, 0.06°, plus the decaying stamp shake (16px)
+  let shx = 0, shy = 0;
+  const tSt = STAMP_T; if (t > tSt) { const e = Math.exp(-(t - tSt) * 9) * 16; shx = noise1(t * 40) * e; shy = noise1(t * 40 + 9) * e; }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.translate(W / 2, H / 2); ctx.rotate((noise1(t * .31 + 4) * .06) * Math.PI / 180); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(noise1(t * .4) * 2 + shx, noise1(t * .37 + 7) * 2 + shy);
+  ctx.save(); ctx.translate(-20, -12); ctx.scale((W + 40) / W, (H + 24) / H); ctx.translate(0, 0);
+  const satA = smooth(7.3, 9.3, cam.Z);
+  if (satA < 1) drawPaper(ctx, cam);
+  if (satA > 0) { ctx.save(); ctx.globalAlpha = satA; if (satA < 1) { ctx.globalAlpha = 1; const c2 = SATBUF.getContext('2d'); drawSatellite(c2, cam); ctx.globalAlpha = satA; ctx.drawImage(SATBUF, 0, 0); } else drawSatellite(ctx, cam); ctx.restore(); }
+  if (satA < 1) { endTints(ctx, cam, t); drawPaperLabels(ctx, cam, 1 - satA); }
+  ctx.restore();
+  // overlays
+  const live = ITEMS.filter(it => t >= it.t0 && t <= it.t1).sort((a, b) => a.z - b.z);
+  for (const it of live) { ctx.save(); it.draw(ctx, cam, t); ctx.restore(); }
+  return { cam, satA };
+}
+const SATBUF = mk();
+let STAMP_T = 1e9;
+function endTints(ctx, cam, t) {
+  const t0 = T0("it's", 2) + .6, a = clamp((t - t0) / .6);
+  if (a <= 0) return;
+  const s = S(cam), p = proj().scale(256 / (2 * Math.PI) * s).translate([(128 - cam.X) * s + cam.sx, (128 - cam.Y) * s + cam.sy]).clipExtent([[-10, -10], [W + 10, H + 10]]);
+  const path = d3.geoPath(p, ctx);
+  ctx.save(); ctx.globalAlpha = a;
+  for (const f of GEO['countries50m'].features) {
+    if (f.id === '124') ctx.fillStyle = 'rgba(217,41,29,.22)'; else if (f.id === '840') ctx.fillStyle = 'rgba(47,93,140,.26)'; else continue;
+    ctx.beginPath(); path(f); ctx.fill();
+  }
+  ctx.restore();
+}
+function post(ctx, satA, frame) {
+  // paper texture multiplied over everything: 85% on paper, 22% on satellite
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = lerp(.85, .22, satA); ctx.drawImage(PAPERTEX, 0, 0); ctx.restore();
+  // warm vignette
+  if (!post.vig) { const v = mk(), x = v.getContext('2d'), g = x.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, W * .62); g.addColorStop(0, 'rgba(255,240,215,0)'); g.addColorStop(1, 'rgba(110,60,25,.55)'); x.fillStyle = g; x.fillRect(0, 0, W, H); post.vig = v; }
+  ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(post.vig, 0, 0); ctx.restore();
+  // 7% film grain
+  ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .07; const g = GRAINS[frame % GRAINS.length];
+  ctx.drawImage(g, (frame * 37) % 64 - 64, (frame * 53) % 64 - 64, W + 128, H + 128); ctx.restore();
+  // HUD: live lat/long on satellite, imagery credit always in frame
+  const cam = camAt(frame / FPS);
+  if (satA > 0) {
+    const lat = unwy(cam.Y), lon = unwx(cam.X), dms = (v, p, n) => { const a = Math.abs(v), d = Math.floor(a), m = Math.floor((a - d) * 60), s = ((a - d) * 3600 - m * 60).toFixed(1); return `${d}°${String(m).padStart(2, '0')}′${s.padStart(4, '0')}″${v >= 0 ? p : n}`; };
+    ctx.save(); ctx.globalAlpha = satA; ctx.font = '26px "Special Elite"'; ctx.fillStyle = 'rgba(243,233,210,.92)'; ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 6;
+    ctx.fillText(`${dms(lat, 'N', 'S')}   ${dms(lon, 'E', 'W')}`, 56, H - 56); ctx.restore();
+  }
+  ctx.save(); ctx.font = '15px "Special Elite"'; ctx.textAlign = 'right'; ctx.fillStyle = satA > .5 ? 'rgba(243,233,210,.75)' : 'rgba(60,45,30,.75)';
+  ctx.fillText('Imagery: Sentinel-2 cloudless 2016 by EOX, contains modified Copernicus Sentinel data', W - 40, H - 30); ctx.restore();
+}
+// motion blur: subframes over half a frame; 8 normally, up to 40 when the zoom is fast
+function samplesAt(t) {
+  const a = camAt(t), b = camAt(t + 1 / FPS);
+  const dz = Math.abs(b.Z - a.Z) * FPS, dp = Math.hypot((b.X - a.X) * S(a), (b.Y - a.Y) * S(a));
+  return Math.round(clamp(8 + dz * 7 + dp / 6, 8, 40));
+}
+function prDrawFrame(frame, nOverride) {
+  const t = frame / FPS, n = nOverride || samplesAt(t);
+  let satA = 0;
+  for (let k = 0; k < n; k++) {
+    const ts = t + (k / n) * (.5 / FPS);
+    const r = drawScene(ts); satA = r.satA;
+    actx.globalAlpha = 1 / (k + 1); actx.drawImage(scene, 0, 0);
+  }
+  actx.globalAlpha = 1;
+  octx.setTransform(1, 0, 0, 1, 0, 0); octx.drawImage(acc, 0, 0);
+  post(octx, satA, frame);
+  return n;
+}
+// ───────────────────────── boot ─────────────────────────
+window.prReady = (async () => {
+  buildTimeline();
+  STAMP_T = T0(/^(twenty|2020)/) + .09;
+  await loadAssets(); makeTextures(); buildPyramid();
+  window.prMeta = { duration: DURATION, frames: Math.ceil(DURATION * FPS), fps: FPS, width: W, height: H, events: EV.sort((a, b) => a.t - b.t), voice: PR_WORDS.duration };
+  window.prDrawFrame = prDrawFrame;
+  return window.prMeta;
+})();
+</script>
+</body></html>

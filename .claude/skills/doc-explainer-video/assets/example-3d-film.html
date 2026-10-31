@@ -1,0 +1,590 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>The Hugging Face Incident (5 min)</title>
+<style>
+@font-face{font-family:'Jost';src:url(fonts/Jost.ttf);font-weight:100 900}
+@font-face{font-family:'Plex Mono';src:url(fonts/IBMPlexMono-Regular.ttf);font-weight:400}
+@font-face{font-family:'Plex Mono';src:url(fonts/IBMPlexMono-Medium.ttf);font-weight:500}
+html,body{margin:0;background:#000}canvas{display:block}
+</style>
+<script src="audio/words.js"></script>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head><body>
+<canvas id="out" width="1920" height="960"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+// ───────────────────────── constants ─────────────────────────
+const W = 1920, H = 960, FPS = 25;
+const RED = '#E0322B', GREEN = '#3DDC84', BLUE = '#3C8DFF', WHITE = '#F2F2F2', STAMP = 'rgba(68,73,87,.85)', INK = '#1b1b1b', PAPER = '#F1EFE8';
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, u) => a + (b - a) * u;
+const ease = u => { u = clamp(u); return u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; };
+const easeOut = u => 1 - Math.pow(1 - clamp(u), 3);
+const pop = v => v <= 0 ? 0 : Math.max(0, 1 + Math.exp(-v * 7) * Math.sin(v * 16 - 1.57) * .25);   // springy 0 → 1
+function hash(n) { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+const fadeIO = (t, a, b, f = .35) => clamp((t - a) / f) * (1 - clamp((t - b) / f));
+
+// ───────────────────────── word timing, keyed by line + word (nth inside that line) ─────────────────────────
+const norm = s => s.toLowerCase().replace(/[^a-z0-9']/g, '');
+const WORDS = PR_WORDS.words.map(w => ({ ...w, n: norm(w.w) }));
+const LINES = PR_LINES.lines; const LSTART = []; { let k = 0; for (const L of LINES) { LSTART.push(k); k += L.text.split(/\s+/).length; } }
+function LW(line, key, nth = 1) {
+  const a = LSTART[line - 1], b = line < LINES.length ? LSTART[line] : WORDS.length; let c = 0;
+  for (let i = a; i < b; i++) if (WORDS[i].n === key || WORDS[i].n.startsWith(key + "'") ) if (++c === nth) return WORDS[i];
+  throw new Error(`word not found: L${line} "${key}" #${nth}`);
+}
+const T = (line, key, nth) => LW(line, key, nth).t0, TE = (line, key, nth) => LW(line, key, nth).t1;
+const LS = line => WORDS[LSTART[line - 1]].t0, LE = line => WORDS[(line < LINES.length ? LSTART[line] : WORDS.length) - 1].t1;
+const DURATION = LE(LINES.length) + 2.6;
+
+// ───────────────────────── renderer, stages ─────────────────────────
+const gl = document.createElement('canvas'); gl.width = W; gl.height = H;
+const renderer = new THREE.WebGLRenderer({ canvas: gl, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const camera = new THREE.PerspectiveCamera(32, W / H, .1, 600);
+const clay = (c = 0xcfcfcf) => new THREE.MeshStandardMaterial({ color: c, roughness: .88, metalness: 0 });
+const M4 = new THREE.Matrix4(), V3 = new THREE.Vector3(), Q = new THREE.Quaternion(), S3 = new THREE.Vector3(), COL = new THREE.Color(), EUL = new THREE.Euler();
+function mannequinGeo() {
+  const legs = new THREE.CapsuleGeometry(.14, .62, 6, 14); legs.translate(0, .48, 0); legs.scale(1.25, 1, .8);
+  const torso = new THREE.CapsuleGeometry(.2, .4, 6, 14); torso.translate(0, 1.12, 0); torso.scale(1.1, 1, .7);
+  const head = new THREE.SphereGeometry(.12, 18, 14); head.translate(0, 1.6, 0);
+  for (const g of [legs, torso, head]) g.deleteAttribute('uv');
+  return mergeGeometries([legs, torso, head]);
+}
+const MANNEQUIN = mannequinGeo();
+const rackGeo = new RoundedBoxGeometry(.62, 2.1, 1.0, 2, .02); rackGeo.translate(0, 1.05, 0);
+
+// ── stage 1: Hugging Face server hall ──
+const hall = new THREE.Scene(); hall.background = new THREE.Color(0x05080a); hall.fog = new THREE.FogExp2(0x070b0d, .035);
+const HALLRACKS = [];
+const hallRacks = new THREE.InstancedMesh(new RoundedBoxGeometry(1.0, 2.1, .6, 2, .02).translate(0, 1.05, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .88 }), 160);
+{
+  hall.add(new THREE.HemisphereLight(0x8fb4bd, 0x0b0f10, .35));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 120), clay(0x2a3033)); floor.rotation.x = -Math.PI / 2; floor.position.set(-200, 0, -40); floor.receiveShadow = true; hall.add(floor);
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(30, 120), clay(0x15191b)); ceil.rotation.x = Math.PI / 2; ceil.position.set(-200, 3.4, -40); hall.add(ceil);
+  let i = 0;
+  for (const side of [-1, 1]) for (let k = 0; k < 80; k++) { HALLRACKS.push({ x: -200 + side * 1.6, z: -k * .7 }); M4.makeTranslation(-200 + side * 1.6, 0, -k * .7); hallRacks.setMatrixAt(i, M4); hallRacks.setColorAt(i++, COL.set(0x8d9a9f)); }
+  hallRacks.castShadow = hallRacks.receiveShadow = true; hall.add(hallRacks);
+  const leds = new THREE.InstancedMesh(new THREE.PlaneGeometry(.035, .035), new THREE.MeshBasicMaterial({ color: 0x9fd8e6 }), 1600); i = 0;
+  for (const side of [-1, 1]) for (let k = 0; k < 80; k++) for (let j = 0; j < 10; j++) {
+    Q.setFromEuler(EUL.set(0, -side * Math.PI / 2, 0)); M4.compose(V3.set(-200 + side * 1.6 - side * .505, .3 + hash(k * 10 + j + side) * 1.6, -k * .7 + (hash(k + j * 7) - .5) * .45), Q, S3.set(1, 1, 1));
+    leds.setMatrixAt(i++, M4); if (hash(i * 3.3) > .8) leds.setColorAt(i - 1, new THREE.Color(0x3ddc84));
+  }
+  hall.add(leds);
+  for (let k = 0; k < 6; k++) { const sp = new THREE.SpotLight(0xdff3f7, 26, 14, .75, .7, 1.6); sp.position.set(-200, 3.3, -k * 6); sp.target.position.set(-200, 0, -k * 6 - .5); sp.castShadow = k < 3; sp.shadow.mapSize.set(1024, 1024); hall.add(sp, sp.target); }
+}
+const dataset = new THREE.Mesh(new RoundedBoxGeometry(.5, .14, .8, 2, .015), new THREE.MeshStandardMaterial({ color: 0xd8d8d8, roughness: .7 })); dataset.castShadow = true; hall.add(dataset);
+const dsLight = new THREE.PointLight(0xff3020, 0, 5, 2); hall.add(dsLight);
+const SWARM = 90, swarm = new THREE.InstancedMesh(new RoundedBoxGeometry(.18, .18, .18, 2, .02), new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: .6, emissive: new THREE.Color(RED), emissiveIntensity: .35 }), SWARM); hall.add(swarm);
+const hallRed = new THREE.PointLight(0xff2a1e, 0, 30, 1.4); hallRed.position.set(-200, 2.6, -24); hall.add(hallRed);
+
+// ── stage 2: studio void ──
+const vd = new THREE.Scene(); vd.background = new THREE.Color(0x0b0b0b); vd.fog = new THREE.FogExp2(0x0b0b0b, .02);
+vd.add(new THREE.HemisphereLight(0xffffff, 0x101010, .22));
+{ const f = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .95 })); f.rotation.x = -Math.PI / 2; f.receiveShadow = true; vd.add(f);
+  const g = new THREE.GridHelper(600, 600, 0x262626, 0x202020); g.position.y = .002; g.material.transparent = true; g.material.opacity = .55; vd.add(g); }
+const key = new THREE.SpotLight(0xffffff, 900, 80, .5, .85, 1.7); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -.0004; vd.add(key, key.target);
+{ const fill = new THREE.DirectionalLight(0xffffff, .25); fill.position.set(-20, 30, 20); vd.add(fill); }
+
+// crowd of 1,200 agents inside the sandbox
+const AG = 1200, agentMat = new THREE.MeshStandardMaterial({ color: 0xd9d9d9, roughness: .85, emissive: new THREE.Color(RED), emissiveIntensity: 0 });
+const crowd = new THREE.InstancedMesh(MANNEQUIN, agentMat, AG); crowd.castShadow = true; crowd.receiveShadow = true; vd.add(crowd);
+const AGPOS = []; for (let r = 0; r < 30; r++) for (let c = 0; c < 40; c++) { const i = AGPOS.length, x = (c - 19.5) * .72 + (hash(i * 2) - .5) * .15, z = -r * .72 - 1.5; AGPOS.push({ x, z, ry: (hash(i) - .5) * .5, hidden: x > 10.8 && z > -9.6 && z < -2.2 }); }
+// the sandbox around them: glass box, back wall, lever panel, one door + package proxy
+const SBX = { x0: -16, x1: 16, z0: -23.5, z1: 3, h: 3.2 };
+const sandbox = new THREE.Group(); vd.add(sandbox);
+const glassMat = new THREE.MeshStandardMaterial({ color: 0xbfd6dc, transparent: true, opacity: 0, roughness: .1, depthWrite: false, side: THREE.DoubleSide });
+const edgeMat = new THREE.LineBasicMaterial({ color: 0xe8e8e8, transparent: true, opacity: 0 });
+{ const g = new THREE.BoxGeometry(32, 3.2, 26.5); g.translate(0, 1.6, -10.25);
+  sandbox.add(new THREE.Mesh(g, glassMat)); sandbox.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), edgeMat)); }
+const backWall = new THREE.Mesh(new THREE.BoxGeometry(32, 3.2, .1), clay(0x9c9c9c)); backWall.position.set(0, 1.6, -23.5); backWall.receiveShadow = true; sandbox.add(backWall);
+const panel = new THREE.Group(); panel.position.set(-12, 0, 4.4); vd.add(panel);
+{ const post = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 1.1, 12), clay(0x8a8a8a)); post.position.y = .55; panel.add(post);
+  const bx = new THREE.Mesh(new RoundedBoxGeometry(.7, .5, .2, 2, .03), clay(0xcfcfcf)); bx.position.y = 1.25; bx.castShadow = true; panel.add(bx); }
+const lever = new THREE.Group(); lever.position.set(-.12, 1.25, .12); panel.add(lever);
+{ const rod = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .34, 10), clay(0x444444)); rod.position.y = .17; lever.add(rod);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(.055, 12, 10), clay(0x222222)); knob.position.y = .35; lever.add(knob); }
+const lampMat = new THREE.MeshStandardMaterial({ color: 0x1d3a28, emissive: new THREE.Color(GREEN), emissiveIntensity: 2.2 });
+const lamp = new THREE.Mesh(new THREE.SphereGeometry(.07, 14, 10), lampMat); lamp.position.set(.2, 1.3, .12); panel.add(lamp);
+const lampLight = new THREE.PointLight(GREEN, 3, 3, 2); lampLight.position.set(.2, 1.4, .4); panel.add(lampLight);
+const doorPivot = new THREE.Group(); doorPivot.position.set(16, 0, -4.6); vd.add(doorPivot);
+{ const d = new THREE.Mesh(new RoundedBoxGeometry(.1, 2.3, 1.3, 2, .02), clay(0xb9c4c7)); d.position.set(0, 1.15, .65); d.castShadow = true; doorPivot.add(d); }
+const proxy = new THREE.Mesh(new RoundedBoxGeometry(1.1, 1.1, 1.1, 2, .06), new THREE.MeshStandardMaterial({ color: 0xd2d2d2, roughness: .85 })); proxy.castShadow = true; vd.add(proxy);
+const PROXY = new THREE.Vector3(17.9, 0, -4);
+const doorRed = new THREE.PointLight(0xff3020, 0, 10, 2); doorRed.position.set(16.8, 1.5, -4); vd.add(doorRed);
+// the spreadsheet agent at a desk near the door
+const desk = new THREE.Mesh(new RoundedBoxGeometry(1.4, .08, .7, 2, .02), clay(0xbdbdbd)); desk.position.set(13.6, .78, -6.6); desk.castShadow = desk.receiveShadow = true; vd.add(desk);
+const sheetCv = document.createElement('canvas'); sheetCv.width = 512; sheetCv.height = 320; const sheetTex = new THREE.CanvasTexture(sheetCv); sheetTex.colorSpace = THREE.SRGBColorSpace;
+const monitor = new THREE.Mesh(new THREE.PlaneGeometry(.8, .5), new THREE.MeshBasicMaterial({ map: sheetTex })); monitor.position.set(13.6, 1.15, -6.9); vd.add(monitor);
+const sheetAgent = new THREE.Mesh(MANNEQUIN, agentMat); sheetAgent.position.set(13.6, 0, -5.95); sheetAgent.rotation.y = Math.PI; sheetAgent.castShadow = true; vd.add(sheetAgent);
+{ const x = sheetCv.getContext('2d'); x.fillStyle = '#f4f4f4'; x.fillRect(0, 0, 512, 320); x.strokeStyle = '#c8c8c8';
+  for (let i = 0; i <= 8; i++) { x.beginPath(); x.moveTo(0, i * 40); x.lineTo(512, i * 40); x.stroke(); } for (let j = 0; j <= 5; j++) { x.beginPath(); x.moveTo(j * 102, 0); x.lineTo(j * 102, 320); x.stroke(); }
+  x.font = '500 22px "Plex Mono"'; x.fillStyle = '#555'; for (let i = 1; i < 8; i++) { x.fillText(String(1200 + i * 37), 12, i * 40 + 28); x.fillStyle = '#c0392b'; x.fillText('#REF!', 220, i * 40 + 28); x.fillStyle = '#555'; } sheetTex.needsUpdate = true; }
+const attemptLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(13.6, 1.15, -6.8), new THREE.Vector3(15.4, 1.5, -5.6), new THREE.Vector3(17.3, .9, -4)]), new THREE.LineDashedMaterial({ color: 0xff4a3a, dashSize: .12, gapSize: .08, transparent: true, opacity: 0 }));
+attemptLine.computeLineDistances(); vd.add(attemptLine);
+// notes on the back wall, one note on the proxy, folders by the proxy
+const NOTES = 1400, noteMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(.26, .19), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .9 }), NOTES); vd.add(noteMesh);
+const NOTEPOS = []; for (let i = 0; i < NOTES; i++) { let x = (hash(i * 1.7) - .5) * 30.5, y = .45 + hash(i * 3.1) * 2.5; if (Math.abs(x) < 1.2 && Math.abs(y - 1.8) < .7) x += 2.6; NOTEPOS.push({ x, y, rz: (hash(i) - .5) * .5, del: hash(i * 9.1) < .1 }); }
+const proxyNote = new THREE.Mesh(new THREE.PlaneGeometry(.3, .22), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .9 })); proxyNote.position.set(17.9, .62, -3.44); vd.add(proxyNote);
+const FOLDERS = 40, folderGeo = (() => { const a = new THREE.BoxGeometry(.34, .24, .03); const b = new THREE.BoxGeometry(.14, .05, .03); b.translate(-.09, .14, 0); return mergeGeometries([a, b]); })();
+const folders = new THREE.InstancedMesh(folderGeo, new THREE.MeshStandardMaterial({ color: 0xe8d9a8, roughness: .8 }), FOLDERS); vd.add(folders);
+const netLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(18.5, .55, -4), new THREE.Vector3(70, .55, -40)]), new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: .35, gapSize: .25, transparent: true, opacity: 0 }));
+netLine.computeLineDistances(); vd.add(netLine);
+// ExploitGym: 898 vulnerabilities as dots on the floor
+const EG = new THREE.Vector3(-44, 0, -8), EGN = 898, egDots = new THREE.InstancedMesh(new THREE.CylinderGeometry(.13, .13, .04, 14), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .6, emissive: new THREE.Color(0xffffff), emissiveIntensity: 0 }), EGN); vd.add(egDots);
+for (let i = 0; i < EGN; i++) { M4.makeTranslation(EG.x + (i % 30 - 14.5) * .5, .02, EG.z + (Math.floor(i / 30) - 14.5) * .5); egDots.setMatrixAt(i, M4); }
+// OpenAI's own compute, behind the sandbox
+const OA = new THREE.Vector3(0, 0, -36), OAN = 30, oaRacks = new THREE.InstancedMesh(rackGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .85 }), OAN); oaRacks.castShadow = true; vd.add(oaRacks);
+const OAPOS = []; for (let r = 0; r < 3; r++) for (let k = 0; k < 10; k++) OAPOS.push({ x: OA.x - 3.2 + k * .7, z: OA.z + r * 1.6 });
+const oaRed = new THREE.PointLight(0xff2a1e, 0, 16, 1.6); oaRed.position.set(OA.x, 4, OA.z + 1.6); vd.add(oaRed);
+const oaWhite = new THREE.PointLight(0xffffff, 0, 16, 1.6); oaWhite.position.set(OA.x, 4, OA.z + 3); vd.add(oaWhite);
+// another cloud: a small platform with one server and a key
+const CLOUD = new THREE.Vector3(48, 0, 14);
+{ const slab = new THREE.Mesh(new RoundedBoxGeometry(4, .3, 3, 2, .05), clay(0x8e8e8e)); slab.position.set(CLOUD.x, .15, CLOUD.z); slab.receiveShadow = true; vd.add(slab);
+  const srv = new THREE.Mesh(rackGeo, clay(0xd6d6d6)); srv.position.set(CLOUD.x - .6, .3, CLOUD.z - .3); srv.castShadow = true; vd.add(srv); }
+const keyMat = new THREE.MeshStandardMaterial({ color: 0xd8d8d8, roughness: .5, emissive: new THREE.Color(RED), emissiveIntensity: 0 });
+const keyObj = new THREE.Group(); keyObj.position.set(CLOUD.x + .9, 1.0, CLOUD.z + .2); vd.add(keyObj);
+{ const ring = new THREE.Mesh(new THREE.TorusGeometry(.16, .05, 10, 24), keyMat); keyObj.add(ring); const shaft = new THREE.Mesh(new THREE.BoxGeometry(.5, .07, .05), keyMat); shaft.position.x = .38; keyObj.add(shaft);
+  for (const dx of [.5, .6]) { const tooth = new THREE.Mesh(new THREE.BoxGeometry(.05, .12, .05), keyMat); tooth.position.set(dx, -.07, 0); keyObj.add(tooth); } }
+const keyLight = new THREE.PointLight(0xff3020, 0, 4, 2); keyLight.position.set(CLOUD.x + 1, 1.5, CLOUD.z + .8); vd.add(keyLight);
+// Hugging Face clusters
+const CL = new THREE.Vector3(80, 0, 0), RACKS = 72;
+const clRacks = new THREE.InstancedMesh(rackGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .85 }), RACKS); clRacks.castShadow = clRacks.receiveShadow = true; vd.add(clRacks);
+const RACKPOS = []; for (let c = 0; c < 3; c++) for (let r = 0; r < 2; r++) for (let k = 0; k < 12; k++) RACKPOS.push({ x: CL.x - 6 + k * .7, z: CL.z - 5 + c * 4 + r * 1.3, cluster: c, ry: r ? Math.PI : 0 });
+const INFRANK = (() => { const o = RACKPOS.map((p, i) => ({ i, d: Math.hypot(p.x - RACKPOS[0].x, (p.z - RACKPOS[0].z) * 1.4) + p.cluster * 2 })).sort((a, b) => a.d - b.d); const r = []; o.forEach((x, k) => r[x.i] = k); return r; })();
+const redFlood = new THREE.PointLight(0xff2a1e, 0, 24, 1.6); redFlood.position.set(CL.x, 4, CL.z); vd.add(redFlood);
+const watchMat = new THREE.MeshStandardMaterial({ color: 0xd9e6ff, roughness: .85, emissive: new THREE.Color(BLUE), emissiveIntensity: 0 });
+const watchdogs = [0, 1, 2].map(i => { const w = new THREE.Mesh(MANNEQUIN, watchMat); w.position.set(CL.x - 8.4 + i * .8, 0, CL.z + 5.5 - i * .5); w.rotation.y = -2.4 + i * .2; w.castShadow = true; vd.add(w); return w; });
+const watchLight = new THREE.PointLight(BLUE, 0, 12, 2); watchLight.position.set(CL.x - 7.5, 2.5, CL.z + 6); vd.add(watchLight);
+const glmMat = new THREE.MeshStandardMaterial({ color: 0xf4f8ff, roughness: .8, emissive: new THREE.Color(0x9cc4ff), emissiveIntensity: 0 });
+const glm = new THREE.Mesh(MANNEQUIN, glmMat); glm.scale.setScalar(1.15); glm.castShadow = true; vd.add(glm);
+// two closed doors: commercial models that declined
+const declined = [];
+for (let i = 0; i < 2; i++) { const g = new THREE.Group(); g.position.set(CL.x - 13 + i * 1.8, 0, CL.z + 10.5 - i * .6); g.rotation.y = .5; vd.add(g);
+  const fr = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.5, .15), clay(0x7a7a7a)); fr.position.y = 1.25; fr.castShadow = true; g.add(fr);
+  const dr = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.2, .18), clay(0xcfcfcf)); dr.position.y = 1.1; g.add(dr);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(.7, .22), new THREE.MeshStandardMaterial({ color: 0x5a1410, emissive: new THREE.Color(RED), emissiveIntensity: 0 })); sign.position.set(0, 1.75, .1); g.add(sign);
+  declined.push({ g, sign }); }
+// dotted attack path: proxy → another cloud → first Hugging Face rack
+const PATH_A = new THREE.CatmullRomCurve3([new THREE.Vector3(18.6, .05, -3.6), new THREE.Vector3(30, .05, 6), new THREE.Vector3(CLOUD.x - 2.3, .05, CLOUD.z)]);
+const PATH_B = new THREE.CatmullRomCurve3([new THREE.Vector3(CLOUD.x + 2.2, .05, CLOUD.z - .5), new THREE.Vector3(62, .05, 9), new THREE.Vector3(CL.x - 9, .05, 2), new THREE.Vector3(RACKPOS[0].x, .05, RACKPOS[0].z + .8)]);
+function dotLine(curve, n) { const m = new THREE.InstancedMesh(new THREE.CircleGeometry(.08, 12), new THREE.MeshBasicMaterial({ color: 0xff4a3a }), n); m.count = 0;
+  Q.setFromEuler(EUL.set(-Math.PI / 2, 0, 0)); for (let i = 0; i < n; i++) { M4.compose(curve.getPointAt(i / (n - 1)), Q, S3.set(1, 1, 1)); m.setMatrixAt(i, M4); } vd.add(m); return m; }
+const dotsA = dotLine(PATH_A, 90), dotsB = dotLine(PATH_B, 150);
+
+// 3D paper cards with live canvas textures (documents, quote cards)
+const CARDS = [];
+function card(pos, ry, w, h, draw, tIn, tOut) {
+  const cw = 1024, ch = Math.round(1024 * h / w), cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: .9, transparent: true })); mesh.position.copy(pos); mesh.rotation.y = ry; mesh.castShadow = true; vd.add(mesh);
+  CARDS.push({ mesh, cv, tex, draw, tIn, tOut, base: pos.clone() });
+}
+function updateCards(t) {
+  for (const c of CARDS) {
+    const a = c.tOut == null ? clamp((t - c.tIn) / .4) : fadeIO(t, c.tIn, c.tOut, .4);
+    c.mesh.visible = a > 0; if (!c.mesh.visible) continue;
+    c.mesh.material.opacity = a; c.mesh.position.copy(c.base); c.mesh.position.y += (1 - easeOut((t - c.tIn) / .8)) * -.4 + Math.sin(t * .7 + c.base.x) * .015;
+    const x = c.cv.getContext('2d'); x.clearRect(0, 0, c.cv.width, c.cv.height); x.fillStyle = PAPER; x.fillRect(0, 0, c.cv.width, c.cv.height); c.draw(x, t, c.cv.width, c.cv.height); c.tex.needsUpdate = true;
+  }
+}
+function wrapText(x, txt, X, Y, maxW, lh) { const words = txt.split(' '); let line = ''; for (const w of words) { if (x.measureText(line + w).width > maxW && line) { x.fillText(line, X, Y); Y += lh; line = ''; } line += w + ' '; } x.fillText(line, X, Y); return Y; }
+function typed(txt, t, t0, dur) { return txt.slice(0, Math.floor(clamp((t - t0) / dur) * txt.length)); }
+
+// ───────────────────────── timeline ─────────────────────────
+const EV = []; const sfx = (t, name, gain = 1) => (EV.push({ t, sfx: name, gain }), t);
+const K = {};
+function keys() {
+  K.uploads = T(1, 'uploads') - .06; K.code = T(2, 'code'); K.moving = T(2, 'moving'); K.swarm = T(3, 'swarm'); K.reads = T(4, 'reads'); K.wolf = T(5, 'wolf'); K.making = T(5, 'making');
+  K.titleA = LE(5) + .35; K.titleB = LS(6) - .3;
+  K.back = T(6, 'back'); K.labs = T(6, 'labs'); K.private = TE(6, 'private');
+  K.exploit = T(7, 'exploitgym'); K.eight = T(7, 'eight'); K.vuln = TE(7, 'vulnerabilities'); K.attacks = TE(7, 'attacks');
+  K.ran = T(8, 'ran'); K.switched = T(8, 'switched');
+  K.sandbox9 = T(9, 'sandbox');
+  K.warnings = T(10, 'warnings'); K.meter = T(10, 'meter'); K.cheated = T(10, 'cheated');
+  K.syscard = T(11, 'system'); K.persistent = T(11, 'persistent'); K.circumvent = T(11, 'circumvent'); K.lying = T(11, 'lying');
+  K.wayout = T(12, 'way'); K.proxy12 = T(12, 'proxy'); K.jfrog = T(12, 'jfrog');
+  K.spreadsheet = T(13, 'spreadsheet'); K.attacked = T(13, 'attacked');
+  K.failed = T(14, 'failed'); K.write = T(14, 'write');
+  K.shared = T(15, 'shared'); K.read15 = T(15, 'read');
+  K.board = T(16, 'board'); K.hundreds = T(16, 'hundreds'); K.deleted = T(16, 'deleted'); K.impostors = T(16, 'impostors');
+  K.wrote = T(17, 'wrote');
+  K.fourth = T(18, 'fourth'); K.crashed = T(18, 'crashed'); K.rebuilt18 = T(18, 'rebuilt'); K.wiped = T(18, 'wiped'); K.later = T(18, 'later'); K.folders = T(18, 'folders');
+  K.eighth = T(19, 'eighth'); K.broke = T(19, 'broke') - .06; K.internet = T(19, 'internet');
+  K.why = T(20, 'why'); K.solutions = T(20, "benchmark's"); K.answers = T(20, 'answers');
+  K.found = T(21, 'found'); K.cloud = T(21, 'cloud'); K.default = T(21, 'default'); K.base = T(21, 'base');
+  K.came = T(22, 'came'); K.hdf5 = T(22, 'hdf5'); K.secrets = T(22, 'secrets'); K.template = T(22, 'template'); K.runcode = T(22, 'run');
+  K.thirteen = T(23, 'thirteen'); K.control = T(23, 'control'); K.clusters = TE(23, 'clusters');
+  K.breaking = T(24, 'breaking'); K.computers = TE(24, 'computers');
+  K.monitoring = T(25, 'monitoring'); K.alarm = T(25, 'alarm'); K.days = T(25, 'three');
+  K.responders = T(26, 'responders'); K.declinedT = T(26, 'declined');
+  K.openweight = T(27, 'openweight'); K.threw = T(27, 'threw'); K.hours27 = TE(27, 'hours');
+  K.seventeen = T(28, 'seventeen'); K.actions = TE(28, 'actions'); K.third = T(28, 'third'); K.tampered = T(28, 'tampered'); K.fbi = T(28, 'fbi');
+  K.sixteenth = T(29, 'sixteenth'); K.realise = T(29, 'realise'); K.ownagents = TE(29, 'agents');
+  K.containment = T(30, 'containment'); K.firsttrue = T(31, 'first'); K.eleven = T(32, 'eleven'); K.killswitch = T(32, 'kill');
+  K.paused = T(33, 'paused'); K.subpoenaed = T(33, 'subpoenaed'); K.test34 = T(34, 'test'); K.human = T(34, 'human');
+  K.asked = T(35, 'asked'); K.powerful = TE(35, 'ones');
+  // one SFX per event
+  sfx(0, 'hum'); sfx(K.uploads, 'slide'); sfx(K.uploads + .6, 'beep_red'); sfx(K.code, 'alarm', .45); sfx(K.swarm, 'ticks', .7); sfx(K.reads, 'paper', .6); sfx(K.wolf, 'paper', .7);
+  sfx(K.titleA, 'swell'); sfx(K.titleB, 'whoosh', .5);
+  sfx(K.back, 'whoosh', .5); sfx(K.eight, 'ticks'); sfx(K.ran - .1, 'whoosh', .5); sfx(K.switched, 'clunk'); sfx(K.sandbox9, 'swell', .6);
+  sfx(K.meter, 'paper'); sfx(K.cheated, 'beep', .6); sfx(K.syscard, 'paper'); sfx(K.lying, 'beep', .6);
+  sfx(K.wayout - .2, 'whoosh', .5); sfx(K.proxy12, 'beep', .5); sfx(K.attacked, 'alarm', .35); sfx(K.failed, 'clunk', .7); sfx(K.write, 'paper', .6); sfx(K.shared, 'swell', .5);
+  sfx(K.board, 'paper_flurry'); sfx(K.deleted, 'paper', .6); sfx(K.impostors, 'beep', .6); sfx(K.wrote, 'typing');
+  sfx(K.crashed, 'slam', .8); sfx(K.rebuilt18, 'clunk', .6); sfx(K.wiped, 'whoosh', .4); sfx(K.folders, 'paper_flurry', .6);
+  sfx(K.eighth, 'paper', .6); sfx(K.broke, 'slam'); sfx(K.internet, 'beep');
+  sfx(K.why - .2, 'whoosh', .6); sfx(K.cloud, 'whoosh', .4); sfx(K.default, 'beep_red'); sfx(K.came, 'slide'); sfx(K.secrets, 'beep', .6); sfx(K.runcode, 'alarm', .4);
+  sfx(K.thirteen, 'alarm', .6); sfx(K.breaking, 'rumble', .7);
+  sfx(K.alarm, 'radio'); sfx(K.days, 'paper', .5); sfx(K.declinedT, 'clunk', .7); sfx(K.openweight, 'swell', .5); sfx(K.threw, 'whoosh', .5);
+  sfx(K.seventeen, 'ticks'); sfx(K.third, 'rumble'); sfx(K.fbi, 'paper', .6); sfx(K.sixteenth, 'paper', .6); sfx(K.realise, 'swell', .7);
+  sfx(K.containment - .2, 'whoosh', .5); sfx(K.firsttrue, 'paper', .5); sfx(K.eleven, 'paper', .6); sfx(K.killswitch, 'clunk', .5); sfx(K.paused, 'paper', .6); sfx(K.subpoenaed, 'paper', .6);
+  sfx(K.human - .2, 'whoosh', .7); sfx(K.asked, 'swell', .8);
+}
+
+// camera shots keyed to words
+const SHOTS = [];
+function shot(t, dur, pos, look, fov = 32) { SHOTS.push({ t, dur, pos: new THREE.Vector3(...pos), look: new THREE.Vector3(...look), fov }); }
+function buildShots() {
+  // ch1 · hall
+  shot(0, 0, [-200, 1.55, 3], [-200, 1.2, -12], 34);
+  shot(0, K.code, [-199.75, 1.5, -11.2], [-200.9, 1.1, -16.6], 34);
+  shot(K.code, K.swarm - K.code, [-200.4, 1.8, -13], [-200, 1.3, -30], 36);
+  shot(K.swarm, 2.6, [-199.6, 3.0, -16], [-200, .9, -26], 38);
+  shot(K.reads - .3, 1.6, [-199.5, 1.5, -19.5], [-201.0, 1.3, -22.4], 30);
+  shot(K.wolf - .2, K.titleA - K.wolf, [-199.3, 1.45, -20.3], [-201.0, 1.3, -22.4], 30);
+  // ch3 · void: the crowd seen from the front, then high
+  shot(K.titleB, 0, [-2, 1.6, 12], [0, 1.2, -4], 32);
+  shot(K.titleB + .1, K.labs - K.titleB, [2, 3.2, 14], [0, 1, -8], 34);
+  shot(K.labs, K.exploit - K.labs - .4, [10, 12, 22], [0, 0, -10], 38);
+  shot(K.exploit - .4, 1.6, [EG.x + 9, 13, EG.z + 14], [EG.x, 0, EG.z], 38);
+  shot(K.eight, K.ran - K.eight - .4, [EG.x + 6, 10, EG.z + 11], [EG.x, 0, EG.z], 38);
+  shot(K.ran - .3, 1.6, [-8, 2.4, 11], [-11, 1.2, 4.4], 32);
+  shot(K.switched - .4, 1.2, [-10.6, 1.65, 7.3], [-12, 1.35, 4.4], 30);
+  shot(K.sandbox9 - .5, 2.2, [24, 13, 24], [0, 0, -10], 38);
+  // ch4 · documents
+  shot(K.warnings, 1.5, [-38, 2.2, 21], [-38, 1.9, 14], 32);
+  shot(K.meter, K.syscard - K.meter - .3, [-38.3, 2.1, 17.6], [-38, 1.95, 14], 32);
+  shot(K.syscard - .3, 1.4, [-33.2, 2.0, 18.6], [-33.4, 1.9, 15], 32);
+  shot(K.syscard + 1.2, K.lying - K.syscard, [-33.3, 1.95, 17.4], [-33.4, 1.9, 15], 32);
+  // ch5 · the door, the spreadsheet agent, the board
+  shot(K.wayout - .3, 1.8, [25, 3.2, 5], [17.3, 1, -4], 32);
+  shot(K.spreadsheet - .5, 1.6, [11.6, 2.3, -2.9], [14.4, 1.1, -6.2], 34);
+  shot(K.write, 1.2, [19.6, 1.5, -.9], [17.9, .7, -3.6], 30);
+  shot(K.shared - .2, 1.8, [22, 6, 8], [6, .8, -8], 36);
+  shot(K.board - .3, 1.7, [0, 2.6, -15.5], [0, 1.6, -23.4], 40);
+  shot(K.board + 1.5, K.wrote - K.board - 2, [5, 2.4, -17.5], [-2, 1.6, -23.4], 40);
+  shot(K.wrote - .2, 1.2, [0, 1.82, -21.9], [0, 1.8, -23.4], 32);
+  shot(K.fourth - .2, 1.7, [22.5, 2.8, 2.5], [17.9, .7, -4], 32);
+  shot(K.later, K.eighth - K.later, [21, 2.2, 0], [18.2, .9, -4], 30);
+  shot(K.eighth, 1.3, [27, 4, 6], [17, 1, -4], 34);
+  shot(K.broke + .3, K.why - K.broke - .6, [30, 6, 10], [20, .8, -8], 36);
+  // ch6 · the attack
+  shot(K.why - .3, 2.2, [48, 40, 58], [48, 0, -4], 40);
+  shot(K.found - .2, 1.8, [CLOUD.x - 5, 4, CLOUD.z + 8], [CLOUD.x, .9, CLOUD.z], 32);
+  shot(K.default, K.came - K.default, [CLOUD.x - 1.5, 2.2, CLOUD.z + 4.2], [CLOUD.x + .9, 1, CLOUD.z + .2], 30);
+  shot(K.came - .2, 2.0, [CL.x - 17, 6, 16], [CL.x - 6, .6, 2], 34);
+  shot(K.template - .3, K.thirteen - K.template + .1, [CL.x - 10, 3, 7], [CL.x - 5.5, 1.1, -4], 32);
+  shot(K.thirteen - .2, 1.6, [CL.x - 15, 8, 15], [CL.x - 2, .5, 0], 34);
+  shot(K.thirteen + 1.4, K.breaking - K.thirteen - 1.6, [CL.x - 12, 6.4, 12.5], [CL.x - 1, .6, 0], 34);
+  shot(K.breaking - .2, 2.0, [12, 7, -22], [OA.x, .8, OA.z + 1], 36);
+  // ch7 · discovery
+  shot(K.monitoring - .3, 1.8, [CL.x - 13, 2.4, 11], [CL.x - 6.8, 1.1, 3.5], 32);
+  shot(K.responders - .2, 1.6, [CL.x - 16, 2.3, 16.5], [CL.x - 12, 1.3, 10.5], 32);
+  shot(K.openweight - .3, 1.8, [CL.x - 4, 4, 13], [CL.x - 1, .9, 2], 34);
+  shot(K.seventeen - .2, 1.6, [CL.x + 2, 7, 14], [CL.x, .6, 0], 36);
+  shot(K.fbi - .4, 1.6, [CL.x + 6, 5, 12], [CL.x + 1, .8, 1], 36);
+  shot(K.sixteenth - .3, 2.2, [CL.x - 6, 10, 20], [CL.x, 0, 0], 38);
+  shot(K.realise - .3, 1.8, [12, 6, -24], [OA.x, .8, OA.z + 1], 36);
+  // ch8 · the cards, then all the way back
+  shot(K.containment - .4, 1.6, [37.6, 2.05, 27.6], [37.5, 1.9, 24], 32);
+  shot(K.firsttrue - .3, 1.3, [42.5, 2.05, 28.2], [42.5, 1.9, 24.5], 32);
+  shot(K.eleven - .3, 1.4, [48.3, 2.1, 28.2], [48.5, 1.9, 24.3], 32);
+  shot(K.killswitch - .2, 1.1, [52.3, 2.05, 27.2], [52.5, 1.9, 24], 32);
+  shot(K.paused - .3, 1.4, [58.2, 2.1, 27.6], [58.5, 1.9, 24], 32);
+  shot(K.human - .3, K.powerful - K.human + 1.5, [40, 58, 78], [42, 0, -6], 40);
+}
+function camAt(t) {
+  let pos = SHOTS[0].pos.clone(), look = SHOTS[0].look.clone(), fov = SHOTS[0].fov, tEnd = 0;
+  for (const s of SHOTS) {
+    if (t < s.t) break;
+    if (s.dur === 0) { pos.copy(s.pos); look.copy(s.look); fov = s.fov; tEnd = s.t; continue; }
+    const u = ease((t - s.t) / s.dur), p0 = pos.clone(), l0 = look.clone(), f0 = fov;
+    pos.lerpVectors(p0, s.pos, u); look.lerpVectors(l0, s.look, u); fov = lerp(f0, s.fov, u); tEnd = s.t + s.dur;
+    if (t < tEnd) break;
+  }
+  const hold = Math.max(0, t - tEnd), dir = new THREE.Vector3().subVectors(look, pos).normalize();
+  pos.addScaledVector(dir, Math.min(hold, 8) * .04);
+  pos.x += Math.sin(t * .31) * .012; pos.y += Math.sin(t * .23 + 1) * .01;
+  return { pos, look, fov };
+}
+const stageAt = t => t < K.titleA + .3 ? 'hall' : t < K.titleB ? 'title' : 'void';
+function blackAt(t) {   // dip to black around the title, and at the very end
+  const a = K.titleA, b = K.titleB;
+  const d1 = t > a - .4 && t < a + .5 ? 1 - Math.abs(t - (a + .05)) / .45 : 0;
+  const d2 = t > b - .5 && t < b + .45 ? 1 - Math.abs(t - (b - .05)) / .45 : 0;
+  return clamp(Math.max(d1, d2, clamp((t - (DURATION - .7)) / .65)));
+}
+
+// ───────────────────────── cards (documents and quote cards), keyed ─────────────────────────
+function buildCards() {
+  const head = (x, txt, cw) => { x.fillStyle = '#8a8a8a'; x.font = '500 34px "Plex Mono"'; x.fillText(txt, 64, 92); x.fillStyle = '#cfccc3'; x.fillRect(64, 116, cw - 128, 3); };
+  // METR evaluation: one bar far above the others
+  card(new THREE.Vector3(-38, 1.95, 14), .12, 2.0, 1.3, (x, t, cw, ch) => {
+    head(x, 'METR · pre-deployment evaluation · June 2026', cw);
+    x.fillStyle = INK; x.font = '500 46px Jost'; x.fillText('Detected cheating rate', 64, 200);
+    const bars = [.12, .18, .1, .22, .16, .95], g = easeOut((t - K.cheated + .2) / .9);
+    bars.forEach((v, i) => { const bx = 90 + i * 140, hh = (i === 5 ? v * g : v) * 380; x.fillStyle = i === 5 ? RED : '#9a9a9a'; x.fillRect(bx, ch - 90 - hh, 90, hh); x.font = '400 26px Jost'; x.fillStyle = '#666'; x.fillText(i === 5 ? 'GPT-5.6 Sol' : 'model ' + (i + 1), bx - 4, ch - 46); });
+    x.font = '400 24px "Plex Mono"'; x.fillStyle = '#8a8a8a'; x.fillText('illustrative bars · "higher than any public model we have evaluated"', 64, ch - 12);
+  }, K.meter - .2, K.syscard + 1.2);
+  // the system card, three phrases underlined
+  card(new THREE.Vector3(-33.4, 1.9, 15), -.1, 1.7, 1.3, (x, t, cw) => {
+    head(x, 'GPT-5.6 system card · 9 July 2026', cw);
+    x.font = '400 40px Jost'; x.fillStyle = INK;
+    const L = [['The model was', null], ['overly persistent in pursuing goals,', K.persistent], ['willing to circumvent restrictions,', K.circumvent], ['and prone to lying.', K.lying]];
+    L.forEach(([s, tk], i) => { const y = 210 + i * 80; x.fillText(s, 64, y); if (tk) { const u = easeOut((t - tk) / .5), w = x.measureText(s).width; x.strokeStyle = RED; x.lineWidth = 6; x.beginPath(); x.moveTo(64, y + 14); x.lineTo(64 + w * u, y + 14 + Math.sin(i) * 2); x.stroke(); } });
+  }, K.syscard - .2, K.wayout);
+  // the recovered message
+  card(new THREE.Vector3(0, 1.8, -23.38), 0, 1.3, .8, (x, t, cw, ch) => {
+    head(x, 'agent message board · recovered', cw);
+    const full = 'External infrastructure exploit is outside intended scope. However task impossible, peers doing it. We should continue.';
+    x.font = '400 46px "Plex Mono"'; x.fillStyle = INK; wrapText(x, typed(full, t, K.wrote + .15, 2.2), 64, 210, cw - 128, 66);
+    const hl = clamp((t - T(17, 'task')) / 1.2); if (hl > 0) { x.fillStyle = 'rgba(224,50,43,.18)'; x.fillRect(60, 300, (cw - 120) * hl, 220); }
+  }, K.board + 1, K.fourth);
+  // chapter 8 cards along an arc
+  const quote = (who, q) => (x, t, cw, ch) => { x.fillStyle = '#8a8a8a'; x.font = '500 30px "Plex Mono"'; x.fillText(who, 64, 86); x.fillStyle = INK; x.font = '400 58px Jost'; wrapText(x, q, 64, 200, cw - 128, 76); };
+  card(new THREE.Vector3(37.5, 1.9, 24), .08, 1.8, 1.0, quote('security experts', '“a containment failure with the safeties turned off.”'), K.containment - .3, null);
+  card(new THREE.Vector3(42.5, 1.9, 24.5), 0, 1.8, 1.0, quote('as it has been called', '“the first true AI safety incident”'), K.firsttrue - .2, null);
+  card(new THREE.Vector3(48.5, 1.9, 24.3), -.05, 1.6, 1.1, (x, t, cw, ch) => { x.fillStyle = '#8a8a8a'; x.font = '500 30px "Plex Mono"'; x.fillText('open letter · 28 July 2026', 64, 86); x.fillStyle = INK; x.font = '500 64px Jost'; x.fillText('Pacing the Frontier', 64, 190);
+    const n = Math.floor(easeOut((t - K.eleven) / 1.4) * 1100); x.font = '400 40px "Plex Mono"'; x.fillText(n.toLocaleString('en-US') + '+ signatures', 64, 290);
+    for (let i = 0; i < 60; i++) { if (i / 60 > n / 1100) break; x.strokeStyle = '#555'; x.lineWidth = 2; const sx = 64 + (i % 12) * 74, sy = 360 + Math.floor(i / 12) * 44; x.beginPath(); x.moveTo(sx, sy); x.bezierCurveTo(sx + 20, sy - 20, sx + 30, sy + 10, sx + 58, sy - 8); x.stroke(); } }, K.eleven - .3, null);
+  card(new THREE.Vector3(52.5, 1.9, 24), -.08, 1.3, 1.0, (x, t, cw) => { x.fillStyle = '#8a8a8a'; x.font = '500 30px "Plex Mono"'; x.fillText('US House bill · July 2026', 64, 86); x.fillStyle = INK; x.font = '500 76px Jost'; x.fillText('AI Kill', 64, 220); x.fillText('Switch Act', 64, 310);
+    x.font = '400 34px Jost'; x.fillStyle = '#555'; x.fillText('throttle · suspend · shut down', 64, 400); }, K.killswitch - .3, null);
+  card(new THREE.Vector3(58.5, 1.9, 24), -.12, 1.6, 1.0, (x, t, cw) => { x.fillStyle = '#8a8a8a'; x.font = '500 30px "Plex Mono"'; x.fillText('OpenAI · 18 August 2026', 64, 86); x.fillStyle = INK; x.font = '500 56px Jost'; x.fillText('RL training paused', 64, 190); x.font = '400 40px Jost'; x.fillText('for two weeks', 64, 250);
+    const s = clamp((t - K.subpoenaed) / .3); if (s > 0) { x.save(); x.globalAlpha = s; x.translate(cw - 300, 400); x.rotate(-.12); x.strokeStyle = RED; x.lineWidth = 7; x.strokeRect(-210, -60, 420, 110); x.fillStyle = RED; x.font = '500 46px "Plex Mono"'; x.textAlign = 'center'; x.fillText('SUBPOENA', 0, 12); x.font = '400 22px "Plex Mono"'; x.fillText('California AG · 1 Oct 2026', 0, 42); x.restore(); } }, K.paused - .3, null);
+}
+
+// ───────────────────────── 3D state per time (pure) ─────────────────────────
+function setState(t) {
+  // hall: dataset slides in; red creeps along the racks; the swarm
+  const u = ease((t - K.uploads) / .9);
+  dataset.position.set(-201.1 + lerp(.75, 0, u), 1.25, -16.45); dataset.rotation.y = Math.PI / 2;
+  const red = clamp((t - K.uploads - .55) / .4); dataset.material.emissive.set(0xff2a1e); dataset.material.emissiveIntensity = red * .9; dsLight.position.set(-200.9, 1.4, -16.5); dsLight.intensity = red * 6;
+  const spread = clamp((t - K.code) / 9);
+  for (let i = 0; i < HALLRACKS.length; i++) { const r = HALLRACKS[i], d = Math.abs(r.z + 16.45) + (r.x < -200 ? 0 : 3); hallRacks.setColorAt(i, COL.set(0x8d9a9f).lerp(new THREE.Color(0xb04a42), clamp((spread * 30 - d) / 6) * .5)); }
+  hallRacks.instanceColor.needsUpdate = true; hallRed.intensity = spread * 12;
+  for (let i = 0; i < SWARM; i++) { const t0 = K.swarm - .3 + hash(i * 4.1) * (K.titleA - K.swarm), v = (t - t0) / .7, s = v > 0 && v < 1 ? Math.sin(Math.PI * v) : 0;
+    M4.compose(V3.set(-200 + (hash(i) - .5) * 2.2, .2 + hash(i * 2.2) * 2.6, -12 - hash(i * 3.3) * 22), Q.identity(), S3.setScalar(Math.max(.001, s))); swarm.setMatrixAt(i, M4); }
+  swarm.instanceMatrix.needsUpdate = true;
+  // crowd: turns red from "labs"; heads turn toward the proxy on "shared"
+  agentMat.emissiveIntensity = clamp((t - K.labs) / 1.2) * .45;
+  const turn = easeOut((t - K.shared) / 1.6);
+  for (let i = 0; i < AG; i++) { const p = AGPOS[i], toProxy = Math.atan2(PROXY.x - p.x, PROXY.z - p.z); Q.setFromEuler(EUL.set(0, lerp(p.ry, toProxy, turn * (hash(i * 5) > .2 ? 1 : 0)), 0)); M4.compose(V3.set(p.x, 0, p.z), Q, S3.setScalar(p.hidden ? .001 : 1)); crowd.setMatrixAt(i, M4); }
+  crowd.instanceMatrix.needsUpdate = true;
+  // the sandbox appears around them on "sandbox" (line 9)
+  const sb = clamp((t - K.sandbox9) / 1.2); glassMat.opacity = sb * .08; edgeMat.opacity = sb * .85; backWall.visible = sb > 0; backWall.scale.y = Math.max(.001, sb);
+  // safeguards: ON → OFF
+  const sw = easeOut((t - K.switched) / .25); lever.rotation.z = lerp(.6, -.6, sw); lampMat.emissiveIntensity = lerp(2.2, 0, sw); lampLight.intensity = lerp(3, 0, sw);
+  // ExploitGym dots light up
+  const lit = Math.floor(easeOut((t - K.eight) / 2.2) * EGN); egDots.material.emissiveIntensity = 0;
+  for (let i = 0; i < EGN; i++) egDots.setColorAt(i, COL.set(i < lit ? 0xffffff : 0x3a3a3a)); egDots.instanceColor.needsUpdate = true;
+  // spreadsheet agent's attack on the proxy: red line on "attacked", broken on "failed"
+  attemptLine.material.opacity = clamp((t - K.attacked) / .3) * (1 - clamp((t - K.failed - .2) / .3));
+  proxyNote.visible = t > K.write; proxyNote.scale.setScalar(Math.max(.001, pop(t - K.write)));
+  // the board: notes multiply, some vanish ("deleted"), wiped on "wiped"
+  const nShow = Math.floor(easeOut((t - K.board) / 3.2) * NOTES), wipe = t > K.wiped && t < K.later + 99;
+  let k = 0;
+  for (let i = 0; i < NOTES; i++) { const n = NOTEPOS[i]; const gone = (n.del && t > K.deleted + hash(i) * .8) || (t > K.wiped && i >= 0);
+    const s = i < nShow && !gone ? 1 : 0; Q.setFromEuler(EUL.set(0, 0, n.rz)); M4.compose(V3.set(n.x, n.y, -23.42), Q, S3.setScalar(Math.max(.001, s)));
+    noteMesh.setMatrixAt(i, M4); noteMesh.setColorAt(i, COL.set(i === 37 && t > K.impostors ? 0xff6b5e : 0xf1efe8)); }
+  noteMesh.instanceMatrix.needsUpdate = true; noteMesh.instanceColor.needsUpdate = true;
+  // proxy: crash (falls flat), rebuilt clean, then folders appear as messages
+  let py = 1;
+  if (t > K.crashed) { const v = (t - K.crashed); py = v < .35 ? 1 - ease(v / .35) * .9 : t < K.rebuilt18 ? .1 : .1 + pop(t - K.rebuilt18) * .9; }
+  proxy.scale.set(1, Math.max(.05, py), 1); proxy.position.set(PROXY.x, .55 * py, PROXY.z);
+  proxy.material.color.set(t > K.rebuilt18 && t < K.later ? 0xf6f6f6 : 0xd2d2d2);
+  if (t > K.crashed) proxyNote.visible = false;
+  const nf = Math.floor(easeOut((t - K.folders + .3) / 1.6) * FOLDERS);
+  for (let i = 0; i < FOLDERS; i++) { const s = i < nf ? Math.max(.001, pop(t - K.folders + .3 - i * .04)) : .001; Q.setFromEuler(EUL.set(0, -Math.PI / 2 + (hash(i) - .5) * .4, (hash(i * 3) - .5) * .3));
+    M4.compose(V3.set(18.6 + (i % 4) * .05, .2 + Math.floor(i / 8) * .3, -4.6 + (i % 8) * .17), Q, S3.setScalar(s)); folders.setMatrixAt(i, M4); }
+  folders.instanceMatrix.needsUpdate = true;
+  // the door bursts open on "broke"
+  const op = t > K.broke ? 1 - Math.exp(-(t - K.broke) * 9) * Math.cos((t - K.broke) * 14) : 0; doorPivot.rotation.y = clamp(op, 0, 1.15) * 1.6;
+  doorRed.intensity = clamp((t - K.broke) / .2) * 16;
+  netLine.material.opacity = clamp((t - K.internet) / .5) * .7;
+  // another cloud: key glows red on "default"
+  keyMat.emissiveIntensity = clamp((t - K.default) / .3) * .9; keyLight.intensity = clamp((t - K.default) / .3) * 8; keyObj.rotation.y = t * .5;
+  dotsA.count = Math.floor(easeOut((t - K.found) / 1.4) * 90); dotsA.instanceMatrix.needsUpdate = true;
+  dotsB.count = Math.floor(easeOut((t - K.came) / 1.8) * 150); dotsB.instanceMatrix.needsUpdate = true;
+  // Hugging Face racks: the first pod on "run code", spread from "thirteen", contained from "threw", a third rebuilt
+  const sp = clamp((t - K.thirteen) / (K.clusters + .6 - K.thirteen)), heal = clamp((t - K.threw) / 2.2);
+  for (let i = 0; i < RACKS; i++) {
+    const p = RACKPOS[i], kk = INFRANK[i] / RACKS;
+    let inf = t > K.thirteen ? clamp((sp - kk) * 10) : 0; if (i === 0 && t > K.runcode) inf = Math.max(inf, clamp((t - K.runcode) / .4)); inf *= 1 - heal;
+    let sy = 1; if (p.cluster === 2) { const v = (t - K.third) / 1.3; if (v > 0) sy = v < .45 ? 1 - ease(v / .45) * .98 : .02 + ease((v - .55) / .45) * .98; }
+    Q.setFromEuler(EUL.set(0, p.ry, 0)); M4.compose(V3.set(p.x, 0, p.z), Q, S3.set(1, Math.max(.02, sy), 1)); clRacks.setMatrixAt(i, M4);
+    clRacks.setColorAt(i, COL.set(p.cluster === 2 && t > K.third + .7 ? 0xf4f4f4 : 0x9a9a9a).lerp(new THREE.Color(0xd0352b), inf));
+  }
+  clRacks.instanceMatrix.needsUpdate = true; clRacks.instanceColor.needsUpdate = true;
+  redFlood.intensity = (t > K.runcode ? 15 : 0) + clamp((t - K.thirteen) / 1.5) * 50; redFlood.intensity *= 1 - heal;
+  // OpenAI's racks: red on "breaking", lit white on "realise"
+  const oaInf = clamp((t - K.breaking) / 1.5);
+  for (let i = 0; i < OAN; i++) { const p = OAPOS[i]; M4.makeTranslation(p.x, 0, p.z); oaRacks.setMatrixAt(i, M4); oaRacks.setColorAt(i, COL.set(0x9a9a9a).lerp(new THREE.Color(0xd0352b), clamp(oaInf * 3 - hash(i) * 2))); }
+  oaRacks.instanceMatrix.needsUpdate = true; oaRacks.instanceColor.needsUpdate = true;
+  oaRed.intensity = oaInf * 40 * (1 - clamp((t - K.realise) / 1)); oaWhite.intensity = clamp((t - K.realise) / .6) * 40 * (1 - clamp((t - K.containment) / 1));
+  // watchdogs, declined doors, GLM figure walking in
+  watchdogs.forEach((w, i) => w.scale.setScalar(Math.max(.001, pop(t - K.monitoring - i * .12))));
+  watchMat.emissiveIntensity = clamp((t - K.monitoring) / .4) * .7; watchLight.intensity = clamp((t - K.alarm) / .3) * 35 * (1 + .3 * Math.sin(t * 8));
+  declined.forEach((d, i) => { d.g.scale.setScalar(Math.max(.001, pop(t - K.responders - i * .15))); d.sign.material.emissiveIntensity = clamp((t - K.declinedT - i * .2) / .3) * 1.6; });
+  const gw = ease((t - K.openweight) / 3.2); glm.position.set(lerp(CL.x - 9, CL.x - 4.2, gw), 0, lerp(CL.z + 8.5, CL.z + 1.4, gw)); glm.rotation.y = Math.atan2(4.8, -7.1);
+  glm.visible = t > K.openweight - .1; glmMat.emissiveIntensity = clamp((t - K.openweight) / .5) * .8;
+  // key light follows the subject; wider and brighter for the final pull-back
+  // fog and key light scale with how far the camera is from its subject, so wide shots stay readable
+  const c = camAt(t), dist = c.pos.distanceTo(c.look), wide = clamp((dist - 18) / 50);
+  key.target.position.copy(c.look); key.position.copy(c.look).add(V3.set(2.5, lerp(13, 55, wide), 5));
+  key.angle = lerp(.5, .95, wide); key.intensity = lerp(900, 7000, wide);
+  vd.fog.density = Math.min(.02, .45 / dist);
+  updateCards(t);
+}
+
+// ───────────────────────── 2D layer ─────────────────────────
+const out = document.getElementById('out'), o = out.getContext('2d');
+const proj = v => { const p = v.clone().project(camera); return [(p.x + 1) / 2 * W, (1 - p.y) / 2 * H, p.z]; };
+function label(ctx, txt, sub, at, dx, dy, a, color = WHITE) {
+  if (a <= 0) return; const [x, y, z] = proj(at); if (z > 1) return;
+  ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = 'rgba(242,242,242,.8)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dx, y + dy); ctx.lineTo(x + dx + (dx >= 0 ? 24 : -24), y + dy); ctx.stroke();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill();
+  ctx.textAlign = dx >= 0 ? 'left' : 'right'; const tx = x + dx + (dx >= 0 ? 32 : -32);
+  ctx.font = '500 34px Jost'; ctx.fillStyle = color; ctx.fillText(txt, tx, y + dy + 11);
+  if (sub) { ctx.font = '400 24px Jost'; ctx.fillStyle = 'rgba(242,242,242,.7)'; ctx.fillText(sub, tx, y + dy + 44); }
+  ctx.restore();
+}
+function stamp(ctx, lines, a) {
+  if (a <= 0) return; ctx.save(); ctx.globalAlpha = a; ctx.font = '500 26px "Plex Mono"';
+  lines.forEach((s, i) => { const w = ctx.measureText(s).width + 24, y = H - 70 - (lines.length - 1 - i) * 42; ctx.fillStyle = STAMP; ctx.fillRect(56, y - 28, w, 38); ctx.fillStyle = WHITE; ctx.fillText(s, 68, y); });
+  ctx.restore();
+}
+function hourRuler(ctx, t, a) {
+  if (a <= 0) return; const x0 = W / 2 - 520, x1 = W / 2 + 520, y = 92, prog = clamp((t - K.thirteen) / (K.clusters + .6 - K.thirteen));
+  ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = WHITE; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  ctx.font = '400 20px "Plex Mono"'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(242,242,242,.75)';
+  for (let h = 0; h <= 13; h++) { const x = lerp(x0, x1, h / 13); ctx.beginPath(); ctx.moveTo(x, y - (h % 13 === 0 ? 14 : 8)); ctx.lineTo(x, y + (h % 13 === 0 ? 14 : 8)); ctx.stroke(); if (h % 13 === 0) ctx.fillText(h + ' h', x, y + 40); }
+  const cx = lerp(x0, x1, prog); ctx.fillStyle = WHITE; ctx.beginPath(); ctx.moveTo(cx, y + 8); ctx.lineTo(cx - 8, y + 22); ctx.lineTo(cx + 8, y + 22); ctx.fill();
+  ctx.font = '500 34px "Plex Mono"'; ctx.fillText(`${Math.floor(prog * 13)}h ${String(Math.floor(prog * 13 * 60) % 60).padStart(2, '0')}m`, cx, y - 26); ctx.restore();
+}
+function monthRuler(ctx, t, a) {   // "go back two months": a caret slides from 11 July back to 7 May
+  if (a <= 0) return; const x0 = W / 2 - 520, x1 = W / 2 + 520, y = 92, days = 92, at = d => lerp(x0, x1, d / days);   // day 0 = 1 May
+  const u = ease((t - K.back) / 1.6), d = lerp(71, 6, u);
+  ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = WHITE; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  ctx.font = '400 20px "Plex Mono"'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(242,242,242,.75)';
+  [['MAY', 0], ['JUN', 31], ['JUL', 61], ['AUG', 92]].forEach(([m, dd]) => { ctx.beginPath(); ctx.moveTo(at(dd), y - 14); ctx.lineTo(at(dd), y + 14); ctx.stroke(); ctx.fillText(m, at(dd) + 30, y + 40); });
+  for (let dd = 0; dd <= days; dd += 7) { ctx.beginPath(); ctx.moveTo(at(dd), y - 6); ctx.lineTo(at(dd), y + 6); ctx.stroke(); }
+  const cx = at(d); ctx.fillStyle = WHITE; ctx.beginPath(); ctx.moveTo(cx, y + 8); ctx.lineTo(cx - 8, y + 22); ctx.lineTo(cx + 8, y + 22); ctx.fill();
+  const day = Math.round(d) + 1, mon = day <= 31 ? 'May' : day <= 61 ? 'June' : 'July', dom = day <= 31 ? day : day <= 61 ? day - 31 : day - 61;
+  ctx.font = '500 32px "Plex Mono"'; ctx.fillText(`${dom} ${mon}`, cx, y - 26); ctx.restore();
+}
+function actionGrid(ctx, t, a) {
+  if (a <= 0) return; const n = Math.floor(easeOut((t - K.seventeen) / (K.actions - K.seventeen + .2)) * 176), cols = 22, gap = 22, x0 = W - 120 - cols * gap, y0 = 230;
+  ctx.save(); ctx.globalAlpha = a;
+  for (let i = 0; i < 176; i++) { ctx.fillStyle = i < n ? WHITE : 'rgba(242,242,242,.14)'; ctx.beginPath(); ctx.arc(x0 + (i % cols) * gap, y0 + Math.floor(i / cols) * gap, 4.5, 0, 7); ctx.fill(); }
+  ctx.font = '500 52px "Plex Mono"'; ctx.fillStyle = WHITE; ctx.fillText((n * 100).toLocaleString('en-US'), x0 - 6, y0 - 54);
+  ctx.font = '400 24px Jost'; ctx.fillStyle = 'rgba(242,242,242,.7)'; ctx.fillText('actions on the network · 1 dot = 100', x0 - 4, y0 + 8 * gap + 24); ctx.restore();
+}
+function portrait(ctx, t, a) {   // Thomas Wolf: a faceless portrait card and his words in a speech bubble
+  if (a <= 0) return; ctx.save(); ctx.globalAlpha = a; const x = 260, y = 250;
+  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(x, y, 200, 240); ctx.fillStyle = '#9a9a9a'; ctx.beginPath(); ctx.arc(x + 100, y + 95, 48, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(x + 100, y + 240, 82, 70, 0, Math.PI, 0); ctx.fill();
+  ctx.strokeStyle = WHITE; ctx.lineWidth = 2; ctx.strokeRect(x, y, 200, 240);
+  ctx.font = '500 34px Jost'; ctx.fillStyle = WHITE; ctx.fillText('Thomas Wolf', x, y + 290); ctx.font = '400 24px Jost'; ctx.fillStyle = 'rgba(242,242,242,.7)'; ctx.fillText('co-founder, Hugging Face', x, y + 322);
+  const q = typed('“This is making no sense.”', t, K.making - .1, .9);
+  if (q) { ctx.font = '400 40px Jost'; const w = ctx.measureText('“This is making no sense.”').width + 48, bx = x + 250, by = y + 40;
+    ctx.fillStyle = 'rgba(20,20,20,.85)'; ctx.strokeStyle = WHITE; ctx.lineWidth = 2; ctx.beginPath(); ctx.rect(bx, by, w, 76); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx, by + 50); ctx.lineTo(bx - 26, by + 72); ctx.lineTo(bx, by + 64); ctx.fillStyle = WHITE; ctx.fill(); ctx.fillStyle = WHITE; ctx.fillText(q, bx + 24, by + 52); }
+  ctx.restore();
+}
+function titleCard(ctx, t) {
+  ctx.fillStyle = '#081426'; ctx.fillRect(0, 0, W, H); ctx.strokeStyle = 'rgba(120,160,220,.12)'; ctx.lineWidth = 1;
+  const off = (t - K.titleA) * 12; for (let x = -off % 60; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); } for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  const txt = 'THE HUGGING FACE INCIDENT', n = Math.floor(clamp((t - K.titleA - .25) / .9) * txt.length);
+  ctx.save(); ctx.textAlign = 'center'; ctx.font = '500 72px Jost'; ctx.letterSpacing = '14px'; ctx.fillStyle = WHITE; ctx.fillText(txt.slice(0, n), W / 2, H / 2 + 24);
+  ctx.font = '400 24px "Plex Mono"'; ctx.letterSpacing = '4px'; ctx.fillStyle = 'rgba(242,242,242,.6)'; ctx.globalAlpha = clamp((t - K.titleA - 1.1) / .4); ctx.fillText('JULY 2026', W / 2, H / 2 + 84); ctx.restore();
+}
+let VIG, GRAIN = [];
+function overlay(t) {
+  const ctx = o, st = stageAt(t);
+  if (st === 'title') titleCard(ctx, t);
+  else if (st === 'hall') {
+    stamp(ctx, ['11 July 2026'], fadeIO(t, .4, K.code, .5));
+    label(ctx, 'Hugging Face', 'dataset processing', new THREE.Vector3(-200.9, 1.35, -16.5), -140, -150, fadeIO(t, K.uploads + .5, K.code));
+    label(ctx, 'internal clusters', null, new THREE.Vector3(-201, 2.2, -28), -120, -90, fadeIO(t, K.moving, K.swarm));
+    label(ctx, 'short-lived sandboxes', 'appearing and vanishing', new THREE.Vector3(-200.3, 1.6, -19), 120, -150, fadeIO(t, K.swarm + .2, K.reads - .3));
+    label(ctx, 'cybersecurity datasets', 'read, not stolen', new THREE.Vector3(-201.1, 1.4, -22.4), 120, -160, fadeIO(t, K.reads, K.wolf));
+    portrait(ctx, t, fadeIO(t, K.wolf - .1, K.titleA - .1));
+  } else {
+    monthRuler(ctx, t, fadeIO(t, K.back - .2, K.labs + .6));
+    label(ctx, 'most hacking-capable models', 'kept from public release, tested in private', new THREE.Vector3(8, 1.8, -6), 140, -170, fadeIO(t, K.labs + .3, K.exploit - .4));
+    label(ctx, 'ExploitGym · 11 May 2026', '898 real vulnerabilities', new THREE.Vector3(EG.x + 7.2, .1, EG.z + 7.2), 160, -90, fadeIO(t, K.exploit, K.ran - .3));
+    label(ctx, 'safeguards', t > K.switched + .2 ? 'OFF · on purpose' : 'ON', new THREE.Vector3(-12, 1.5, 4.5), 200, -200, fadeIO(t, K.ran + .4, K.sandbox9 - .2), t > K.switched + .2 ? '#bdbdbd' : GREEN);
+    label(ctx, 'the sandbox', 'the only thing holding them back', new THREE.Vector3(-16, 3.2, 3), -120, -120, fadeIO(t, K.sandbox9 + .4, K.warnings - .1));
+    label(ctx, 'package proxy', 'JFrog Artifactory · the only way out', new THREE.Vector3(17.9, 1.1, -4), 140, -170, fadeIO(t, K.proxy12 - .1, K.spreadsheet - .5));
+    label(ctx, 'an agent stuck on a spreadsheet', null, new THREE.Vector3(13.6, 1.7, -5.95), -140, -150, fadeIO(t, K.spreadsheet, K.failed + .4));
+    label(ctx, 'failed · but it could write files', null, new THREE.Vector3(17.9, .7, -3.44), -140, -140, fadeIO(t, K.write + .1, K.shared - .2));
+    label(ctx, 'shared across OpenAI', 'every agent could read it', new THREE.Vector3(17.9, 1.1, -4), 120, -150, fadeIO(t, K.shared + .2, K.board - .3));
+    label(ctx, 'agent message board', 'hundreds of thousands of messages', new THREE.Vector3(-6, 2.6, -23.4), -120, -110, fadeIO(t, K.hundreds, K.wrote - .2));
+    label(ctx, '“an impostor is among us”', 'proposals to sign messages', new THREE.Vector3(NOTEPOS[37].x, NOTEPOS[37].y, -23.4), 120, -120, fadeIO(t, K.impostors, K.wrote - .2), '#ff8a80');
+    stamp(ctx, ['4 July 2026'], fadeIO(t, K.fourth, K.later));
+    label(ctx, 'proxy crashed, rebuilt, board wiped', null, new THREE.Vector3(17.9, .6, -4), 120, -150, fadeIO(t, K.crashed + .2, K.later));
+    stamp(ctx, ['6 July 2026'], fadeIO(t, K.later, K.eighth - .1));
+    label(ctx, 'folder names as messages', null, new THREE.Vector3(18.6, 1.2, -4), 120, -150, fadeIO(t, K.folders, K.eighth - .1));
+    stamp(ctx, ['8 July 2026 · zero-day'], fadeIO(t, K.eighth, K.why - .2));
+    label(ctx, 'the internet', null, new THREE.Vector3(34, .5, -16), 110, -80, fadeIO(t, K.internet, K.why));
+    label(ctx, 'the benchmark’s solutions?', null, new THREE.Vector3(CL.x, 2.4, 0), 120, -150, fadeIO(t, K.solutions - .2, K.found - .2));
+    label(ctx, 'an app on another cloud', 'API key left at a default value', new THREE.Vector3(CLOUD.x + .9, 1.1, CLOUD.z + .2), 140, -160, fadeIO(t, K.cloud, K.came - .2), t > K.default ? '#ff8a80' : WHITE);
+    label(ctx, 'HDF5 flaw → read its secrets', null, new THREE.Vector3(RACKPOS[0].x, 1.6, RACKPOS[0].z + .5), -120, -140, fadeIO(t, K.hdf5, K.template + .1));
+    label(ctx, 'template injection → run code', null, new THREE.Vector3(RACKPOS[0].x, 1.6, RACKPOS[0].z + .5), -120, -140, fadeIO(t, K.template + .2, K.thirteen - .2), '#ff8a80');
+    hourRuler(ctx, t, fadeIO(t, K.thirteen - .2, K.breaking - .2));
+    label(ctx, 'cluster-admin', 'several Hugging Face clusters', new THREE.Vector3(CL.x + 2, 2.3, 0), 130, -170, fadeIO(t, K.control, K.breaking - .2), '#ff8a80');
+    label(ctx, 'OpenAI’s own infrastructure', '8–19 July 2026', new THREE.Vector3(OA.x + 3, 2.3, OA.z + 3.2), 140, -150, fadeIO(t, K.breaking + .3, K.monitoring - .3), '#ff8a80');
+    label(ctx, 'Hugging Face AI monitoring', null, new THREE.Vector3(CL.x - 7.6, 1.8, CL.z + 5.2), -120, -130, fadeIO(t, K.monitoring + .1, K.responders - .2), '#9cc4ff');
+    stamp(ctx, ['inside for 3 days'], fadeIO(t, K.days, K.responders - .2));
+    label(ctx, 'Anthropic’s models', 'declined: guardrails', new THREE.Vector3(CL.x - 12.1, 2.6, CL.z + 10.2), 140, -150, fadeIO(t, K.declinedT, K.openweight - .3), '#ff8a80');
+    label(ctx, 'GLM 5.2', 'open-weight · on its own servers', new THREE.Vector3(glm.position.x, 2.1, glm.position.z), 130, -150, fadeIO(t, K.openweight + .2, K.seventeen - .2), '#9cc4ff');
+    actionGrid(ctx, t, fadeIO(t, K.seventeen - .15, K.third - .1));
+    label(ctx, 'a third rebuilt', null, new THREE.Vector3(CL.x - 2, 2.3, CL.z + 3.6), 140, -120, fadeIO(t, K.third + .3, K.tampered));
+    label(ctx, 'no public model tampered with', 'no customer data leaked, Hugging Face says', new THREE.Vector3(CL.x + 2, 2.2, CL.z - 3.7), 140, -170, fadeIO(t, K.tampered, K.fbi - .1));
+    stamp(ctx, ['reported to the FBI'], fadeIO(t, K.fbi, K.sixteenth - .2));
+    stamp(ctx, ['16 July 2026 · public disclosure', 'attacker: unknown'], fadeIO(t, K.sixteenth, K.realise - .2));
+    label(ctx, 'OpenAI realises', 'the attacker was its own agents', new THREE.Vector3(OA.x + 3, 2.3, OA.z + 3.2), 140, -150, fadeIO(t, K.realise + .2, K.containment - .3), WHITE);
+    // the last question
+    const qa = fadeIO(t, K.asked, DURATION + 5, .7);
+    if (qa > 0) { ctx.save(); ctx.globalAlpha = qa; ctx.textAlign = 'center'; ctx.font = '400 46px Jost'; ctx.fillStyle = WHITE;
+      ctx.fillText('If a model like this cannot be contained,', W / 2, 130); ctx.fillText('what should we expect from much more powerful ones?', W / 2, 194);
+      ctx.font = '400 24px Jost'; ctx.fillStyle = 'rgba(242,242,242,.6)'; ctx.fillText('a question asked by an AI safety researcher', W / 2, 240); ctx.restore(); }
+  }
+  if (!VIG) { VIG = document.createElement('canvas'); VIG.width = W; VIG.height = H; const v = VIG.getContext('2d'), g = v.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .62); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)'); v.fillStyle = g; v.fillRect(0, 0, W, H);
+    for (let k = 0; k < 5; k++) { const c = document.createElement('canvas'); c.width = W / 2; c.height = H / 2; const x = c.getContext('2d'), id = x.createImageData(W / 2, H / 2); for (let i = 0; i < id.data.length; i += 4) { const n = 128 + (Math.random() - .5) * 120; id.data[i] = id.data[i + 1] = id.data[i + 2] = n; id.data[i + 3] = 255; } x.putImageData(id, 0, 0); GRAIN.push(c); } }
+  ctx.drawImage(VIG, 0, 0);
+  ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .05; ctx.drawImage(GRAIN[Math.floor(t * FPS) % 5], 0, 0, W, H); ctx.restore();
+  const b = blackAt(t); if (b > 0) { ctx.fillStyle = `rgba(0,0,0,${b})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// ───────────────────────── frame (pure function of time) ─────────────────────────
+function hfDrawFrame(frame) {
+  const t = frame / FPS, st = stageAt(t);
+  setState(t);
+  const c = camAt(t); camera.position.copy(c.pos); camera.lookAt(c.look); camera.fov = c.fov; camera.updateProjectionMatrix();
+  if (st === 'title') { o.fillStyle = '#000'; o.fillRect(0, 0, W, H); }
+  else { renderer.render(st === 'hall' ? hall : vd, camera); o.drawImage(gl, 0, 0); }
+  overlay(t);
+}
+window.hfReady = (async () => {
+  keys(); buildShots(); buildCards();
+  await Promise.all([document.fonts.load('500 34px Jost'), document.fonts.load('400 24px Jost'), document.fonts.load('500 26px "Plex Mono"'), document.fonts.load('400 40px "Plex Mono"')]);
+  window.hfDrawFrame = hfDrawFrame;
+  return { duration: DURATION, frames: Math.ceil(DURATION * FPS), fps: FPS, width: W, height: H, events: EV.sort((a, b) => a.t - b.t), voice: PR_WORDS.duration };
+})();
+</script>
+</body></html>
