@@ -22,9 +22,10 @@ Turn `binance-hack-2026/script.md` (the October 29, 2026 Binance hack, ~24 min) 
 | Twitter/X | **No tweets or X post cards.** The user had that segment removed |
 | Bybit 2025 | **Keep the comparison.** It's in Chapter 6 "Echoes of Bybit" |
 | Efficiency | Reuse a few sets (server hall, studio void, wallet vault, chain nodes). Keep crowds small |
+| Names: companies | **Use real company names** (Binance, Bybit, Bitget, Tether, Circle, Ripple, THORChain, TRM Labs, Chainalysis, Elliptic, Safe…) |
+| Names: individuals | **Name people only in neutral, non-incriminating statements**, such as their role ("Richard Teng, Binance's co-CEO") or what they publicly said, attributed as the source does ("Teng said Binance would cover the losses"). Never tie a named person to blame, wrongdoing, negligence or speculation. For example, the compromised engineer stays anonymous, and so do anonymous attackers |
 
-## Still open (ask the user)
-1. **Names:** name real companies and people (Binance, Tether, Circle, ZachXBT, Richard Teng…), or only roles ("an investigator")? The skill prefers roles unless the user wants names.
+No open questions. All decisions are made, so start directly with step 1.
 
 ## Next steps (skill pipeline)
 1. **Fact-check.** Fetch `https://en.wikipedia.org/wiki/2026_Binance_hack` as HTML and read it in full; it was reachable as of Oct 31, 2026. `2025_Bybit_hack` returned 404, so find the correct title (e.g. search Wikipedia for "Bybit hack"). Every sentence in the film must trace to something you read. No invented quotes.
