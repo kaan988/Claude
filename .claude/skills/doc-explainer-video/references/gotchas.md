@@ -24,3 +24,5 @@
 | A crashed render worker looked successful | `max()` of exit codes hid a negative (signal) code | First non-zero code wins; verify every frame exists before declaring done |
 | Gaps in frames silently shortened the film | ffmpeg stops at the first missing number, `-shortest` trims audio | encode.py checks the full sequence first |
 | Re-voiced but kept old Whisper times | Two inputs from different wavs | align_words.py compares durations and stops |
+| A 4:46 film in an 11 MB page looked like mush | One file under the 16 MB page limit | Four ≤ 14 MB fMP4 segments as supporting files, played through Media Source |
+| Publishing refused `stream.m3u8` | Artifact pages serve only standard web types | Drop the playlist; segments named `.mp4`, joined in the page |
