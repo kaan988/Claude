@@ -1,0 +1,12 @@
+# regenerable / large: downloads, tiles, frames, map data, audio renders
+dl/
+tiles/
+frames/
+data/*.json
+data/*.geojson
+data/geo.js
+audio/
+out/check/
+out/*.log
+__pycache__/
+out/*.mp4
