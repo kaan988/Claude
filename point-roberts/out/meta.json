@@ -1,0 +1,232 @@
+{
+ "duration": 41.001,
+ "frames": 1231,
+ "events": [
+  {
+   "t": 0.26,
+   "sfx": "marker",
+   "gain": 1
+  },
+  {
+   "t": 0.64,
+   "sfx": "scribble",
+   "gain": 0.7
+  },
+  {
+   "t": 1.72,
+   "sfx": "marker",
+   "gain": 0.6
+  },
+  {
+   "t": 3.944,
+   "sfx": "paper_slide",
+   "gain": 1
+  },
+  {
+   "t": 4.9479999999999995,
+   "sfx": "typing",
+   "gain": 0.8
+  },
+  {
+   "t": 6.889,
+   "sfx": "paper_slide",
+   "gain": 1
+  },
+  {
+   "t": 7.348,
+   "sfx": "typing",
+   "gain": 0.8
+  },
+  {
+   "t": 8.068,
+   "sfx": "whoosh_out",
+   "gain": 0.6
+  },
+  {
+   "t": 8.358,
+   "sfx": "marker",
+   "gain": 1
+  },
+  {
+   "t": 9.174,
+   "sfx": "paper_slide",
+   "gain": 1
+  },
+  {
+   "t": 10.722,
+   "sfx": "whoosh_in",
+   "gain": 1
+  },
+  {
+   "t": 12.001,
+   "sfx": "marker",
+   "gain": 1
+  },
+  {
+   "t": 12.751,
+   "sfx": "scribble",
+   "gain": 0.6
+  },
+  {
+   "t": 13.437,
+   "sfx": "scribble",
+   "gain": 0.8
+  },
+  {
+   "t": 14.777,
+   "sfx": "scribble",
+   "gain": 0.6
+  },
+  {
+   "t": 16.436,
+   "sfx": "whoosh_in",
+   "gain": 1
+  },
+  {
+   "t": 17.416,
+   "sfx": "marker",
+   "gain": 1
+  },
+  {
+   "t": 17.896,
+   "sfx": "whoosh_out",
+   "gain": 0.6
+  },
+  {
+   "t": 18.226000000000003,
+   "sfx": "paper_slide",
+   "gain": 1
+  },
+  {
+   "t": 18.656000000000002,
+   "sfx": "page_turn",
+   "gain": 1
+  },
+  {
+   "t": 19.312,
+   "sfx": "marker",
+   "gain": 0.8
+  },
+  {
+   "t": 20.052000000000003,
+   "sfx": "paper_slide",
+   "gain": 1
+  },
+  {
+   "t": 20.202,
+   "sfx": "clock",
+   "gain": 0.8
+  },
+  {
+   "t": 21.072000000000003,
+   "sfx": "paper_slide",
+   "gain": 1
+  },
+  {
+   "t": 21.511,
+   "sfx": "typing",
+   "gain": 0.8
+  },
+  {
+   "t": 21.583000000000002,
+   "sfx": "paper_slide",
+   "gain": 0.9
+  },
+  {
+   "t": 21.613,
+   "sfx": "whoosh_out",
+   "gain": 0.6
+  },
+  {
+   "t": 21.823,
+   "sfx": "highlighter",
+   "gain": 0.7
+  },
+  {
+   "t": 23.255000000000003,
+   "sfx": "highlighter",
+   "gain": 0.7
+  },
+  {
+   "t": 23.871000000000002,
+   "sfx": "paper_slide",
+   "gain": 0.9
+  },
+  {
+   "t": 24.411,
+   "sfx": "highlighter",
+   "gain": 0.7
+  },
+  {
+   "t": 26.991000000000003,
+   "sfx": "paper_slide",
+   "gain": 0.9
+  },
+  {
+   "t": 27.331000000000003,
+   "sfx": "highlighter",
+   "gain": 0.7
+  },
+  {
+   "t": 28.07,
+   "sfx": "whoosh_out",
+   "gain": 0.6
+  },
+  {
+   "t": 28.740000000000002,
+   "sfx": "impact",
+   "gain": 1
+  },
+  {
+   "t": 29.737000000000002,
+   "sfx": "whoosh_out",
+   "gain": 0.5
+  },
+  {
+   "t": 29.837000000000003,
+   "sfx": "paper_slide",
+   "gain": 1
+  },
+  {
+   "t": 30.127,
+   "sfx": "marker",
+   "gain": 1
+  },
+  {
+   "t": 32.564,
+   "sfx": "marker",
+   "gain": 0.6
+  },
+  {
+   "t": 34.885000000000005,
+   "sfx": "whoosh_in",
+   "gain": 0.5
+  },
+  {
+   "t": 36.971000000000004,
+   "sfx": "whoosh_in",
+   "gain": 1
+  },
+  {
+   "t": 37.301,
+   "sfx": "marker",
+   "gain": 1
+  },
+  {
+   "t": 37.621,
+   "sfx": "paper_slide",
+   "gain": 1
+  },
+  {
+   "t": 38.381,
+   "sfx": "scribble",
+   "gain": 1
+  },
+  {
+   "t": 38.621,
+   "sfx": "marker",
+   "gain": 1
+  }
+ ],
+ "voice": 39.787375
+}

@@ -1,0 +1,5 @@
+dl
+frames/
+audio/*.wav
+out/
+__pycache__/
