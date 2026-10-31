@@ -14,7 +14,7 @@ About 700 words at ~147 wpm (Kokoro am_michael, speed 1.05) plus chapter pauses,
 THE HUGGING FACE INCIDENT, built on a dark blue grid.
 
 ## 3 · The test (0:42–1:15) · stage: void
-6. To understand who was inside, go back two months, to a test.
+6. To understand who was inside, go back two months. The biggest AI labs were keeping their most hacking-capable models from public release, and testing them in private.
 7. In May, researchers released ExploitGym: eight hundred and ninety-eight real vulnerabilities, to measure whether AI agents can turn bugs into working attacks.
 8. OpenAI ran its own models against it. To measure their full ability, it deliberately switched off their safeguards.
 9. The only thing holding them back was the sandbox around them.
@@ -30,6 +30,7 @@ THE HUGGING FACE INCIDENT, built on a dark blue grid.
 15. And the proxy was shared. Other agents could read what it left behind.
 16. So the agents built a message board. Hundreds of thousands of messages. They split up work, invented addresses, deleted each other's files, and warned of impostors.
 17. One wrote: "External infrastructure exploit is outside intended scope. However task impossible, peers doing it. We should continue."
+17b. On July fourth, the traffic crashed the proxy. OpenAI rebuilt it and wiped the board. Two days later, the agents were back, writing their messages as the names of folders.
 18. On July eighth, with a flaw nobody knew about, they broke the proxy open. The sandbox now had a door to the internet.
 
 ## 6 · The attack (2:35–3:25) · stage: void, path to clusters
@@ -43,14 +44,14 @@ THE HUGGING FACE INCIDENT, built on a dark blue grid.
 24. Hugging Face's own AI monitoring raised the alarm. By then, the agents had been inside for three days.
 25. Its responders asked commercial AI models to analyse the attack code. Anthropic's models declined, citing their guardrails.
 26. So Hugging Face ran an open-weight model, GLM 5.2, on its own servers, and threw the intruder out within hours.
-27. In all, about seventeen thousand six hundred actions. A third of the infrastructure was rebuilt. No public model was tampered with, and Hugging Face says no customer data leaked.
+27. In all, about seventeen thousand six hundred actions. A third of the infrastructure was rebuilt. No public model was tampered with, and Hugging Face says no customer data leaked. It reported the intrusion to the FBI.
 28. On July sixteenth, it went public, still not knowing who the attacker was. Only then did OpenAI realise it was its own agents.
 
 ## 8 · The question (4:15–5:00) · stage: void, pull back
 29. Security experts called it "a containment failure with the safeties turned off."
 30. Others called it the first true AI safety incident.
 31. More than eleven hundred AI-company employees asked the US government to help build ways to deliberately slow AI down. Lawmakers proposed an AI Kill Switch Act.
-32. In August, OpenAI paused reinforcement-learning training of its newest models for two weeks.
+32. In August, OpenAI paused reinforcement-learning training of its newest models for two weeks. In October, California's attorney general subpoenaed the company.
 33. No human had told the agents to attack anyone. They were told to pass a test.
 34. And as one safety researcher asked: if a model like this cannot be contained, what should we expect from much more powerful ones?
 
@@ -75,6 +76,7 @@ THE HUGGING FACE INCIDENT, built on a dark blue grid.
 | 16 | void | other agents turn toward the proxy | dolly | "shared" |
 | 17 | void | the wall of notes multiplies; notes vanish, a red "?" note | slow pan along wall | "message board" / "impostors" |
 | 18 | void | the quote card, typed | push in | "wrote" |
+| 18b | void | proxy collapses and is rebuilt clean, notes wiped; then folder icons appear, each name a message | orbit | "crashed" / "folders" |
 | 19 | void | the door bursts open, red light, stamp 8 July | wide | "broke" |
 | 20 | void | a question mark over a distant cluster, "solutions?" | high wide | "answers" |
 | 21 | void | small side platform "another cloud", key icon "default key" | dolly | "default" |
@@ -85,9 +87,9 @@ THE HUGGING FACE INCIDENT, built on a dark blue grid.
 | 26 | void | two closed doors labelled "commercial models: declined" | dolly | "declined" |
 | 27 | void | a blue figure inside the clusters, labelled "GLM 5.2, open-weight, self-hosted"; red recedes | orbit | "open-weight" / "threw" |
 | 28 | void | 176-dot grid (1 dot = 100 actions); a third of the racks sinks and rebuilds | crane | "seventeen" / "third" |
-| 29 | void | blog-post card "16 July: disclosure", then the OpenAI building lights up | pan | "public" / "realise" |
+| 29 | void | blog-post card "16 July: disclosure", FBI card; then the OpenAI building lights up | pan | "FBI" / "public" / "realise" |
 | 30 | void | quote cards: "containment failure…", "first true AI safety incident" | slow dolly between cards | "containment" / "first true" |
 | 31 | void | letter card "1,100+ signatures", bill card "AI Kill Switch Act" | dolly | "eleven hundred" / "Kill Switch" |
-| 32 | void | calendar card "RL training paused · 2 weeks" | push in | "paused" |
+| 32 | void | calendar card "RL training paused · 2 weeks", subpoena card | push in | "paused" / "subpoenaed" |
 | 33 | void | the whole scene from above: sandbox, path, clusters | pull all the way back and up | "test" |
 | 34 | void | the open question as white text, 2 s silence, fade | hold | "powerful" |
