@@ -37,6 +37,6 @@ if __name__ == '__main__':
             k, n = map(int, sys.argv[3].split('/')); end = int(sys.argv[4]) if len(sys.argv) > 4 else meta['frames']; t0 = time.time(); done = 0
             for f in range(k, end, n):
                 if os.path.exists(f'frames/f_{f:04d}.jpg'): continue
-                open(f'frames/f_{f:04d}.jpg', 'wb').write(grab(pg, f)); done += 1
+                p = f'frames/f_{f:04d}.jpg'; open(p + '.tmp', 'wb').write(grab(pg, f)); os.replace(p + '.tmp', p); done += 1   # atomic: a killed run leaves no half-written frame
                 if done % 50 == 0: print(sys.argv[2], f, done, round(time.time()-t0), 's', flush=True)
         b.close()
