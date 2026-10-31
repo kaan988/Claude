@@ -34,8 +34,9 @@ worst = min(20*np.log10(rms(voice[int(p[0]['t0']*SR):int(p[-1]['t1']*SR)])/rms(m
 print(f'phrases {len(phr)}, worst voice-over-music {worst:.1f} dB')
 import warnings; warnings.filterwarnings('ignore')
 meter = pyln.Meter(SR)
+st = lambda m: np.stack([m, m], 1)                      # measure what ships: stereo
 for _ in range(6):                                      # normalize, soft-limit peaks at -1 dBFS, repeat
-    mix = pyln.normalize.loudness(mix, meter.integrated_loudness(mix), -14.0)
+    mix = mix * 10**((-14.0 - meter.integrated_loudness(st(mix)))/20)
     mix = np.where(np.abs(mix) > .7, np.sign(mix)*(.7 + .19*np.tanh((np.abs(mix)-.7)/.19)), mix)
-print('LUFS', round(meter.integrated_loudness(mix), 2), 'peak dBFS', round(20*np.log10(np.max(np.abs(mix))), 2))
+print('LUFS', round(meter.integrated_loudness(st(mix)), 2), 'peak dBFS', round(20*np.log10(np.max(np.abs(mix))), 2))
 sf.write('audio/mix.wav', np.stack([mix, mix], 1).astype(np.float32), SR)
