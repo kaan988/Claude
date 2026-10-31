@@ -1,8 +1,8 @@
 # THE 20-MINUTE HEIST
 ### How $6.3 billion left Binance on October 29, 2026: a documentary script
 
-**Target runtime:** ≈23:45 at a standard documentary read of **140 wpm** (≈3,100 spoken words incl. quoted posts, plus timed pauses for title cards and animations)
-**Format:** Narrated explainer. Motion-graphics on-chain visuals, screen captures of X posts, and B-roll.
+**Target runtime:** ≈24:03 at a standard documentary read of **140 wpm** (≈3,111 spoken words, plus timed pauses for title cards and animations)
+**Format:** Narrated explainer. Motion-graphics on-chain visuals, headline/statement cards, and B-roll.
 **Research cutoff:** October 31, 2026. All figures are preliminary, and the sources disagree on several of them. Binance has **not** published its post-mortem yet. Re-check every number before you publish (see the *Fact-check sheet* at the end).
 
 > Conventions: **[VISUAL]** = what's on screen · **[OST]** = on-screen text · **[SFX/MUSIC]** = audio cue · Narration is plain text.
@@ -12,13 +12,13 @@
 - **Speed: 140 words per minute.** That's calm, measured and authoritative, like a Netflix or BBC true-crime explainer, not a fast YouTube read. For an AI voice, set it to about 0.9× of its default rate, since most TTS defaults run at 155–170 wpm.
 - **Sentence ends:** let them land. Leave a short breath (~0.3s) between sentences and ~0.8s between paragraphs.
 - **Big numbers** ("six point three billion dollars", "twenty minutes", "twenty-eight hops"): slow down slightly and pause about 1s afterwards so the on-screen text can land.
-- **Quoted X posts:** read them in a slightly flatter, "reading aloud" tone, and leave a 1s pause before each one while the post card animates in.
+- **Comparison table (Ch 6):** pause about 1.5s after each row's on-screen text appears, before reading that row.
 - **Chapter title cards:** about 4s of music only before narration resumes.
-- **Calibration check:** the cold open (≈187 words) should run about **1:20 of speech**. If yours finishes in under 1:10, slow the voice down.
+- **Calibration check:** the cold open (≈197 words) should run about **1:25 of speech**. If yours finishes in under 1:15, slow the voice down.
 
 ---
 
-## COLD OPEN — 0:00–1:30
+## COLD OPEN — 0:00–1:34
 
 **[VISUAL]** Black screen. A single blinking cursor. Then a block-explorer row slides in: `OUT · 20:04 UTC · XRP Ledger`. A second row, then a third. Rows start stacking faster and faster until the screen is a waterfall of red outgoing transactions.
 **[SFX/MUSIC]** Low drone. A soft "tick" for each transaction, accelerating into a hum.
@@ -37,15 +37,15 @@ That is more than four times the previous record, the 2025 Bybit hack. Some anal
 
 **[VISUAL]** Quick montage of headlines: *Axios — "Binance halts trading after biggest-ever crypto hack"*, *CNBC — "largest crypto theft on record"*, *Washington Post — "probably the largest theft of digital currencies in history."*
 
-Within hours, stablecoin issuers would freeze billions. Investigators would trace the money through a twenty-eight-hop chain of wallets. And Binance's founder would end up publicly telling the richest man in the world to stop laughing.
+Within hours, stablecoin issuers would freeze billions. Investigators would trace the money through a twenty-eight-hop chain of wallets, straight to the doorstep of a hack from five weeks earlier. And Binance would bet more than six billion dollars of its own money that it could survive the night.
 
-This is how the biggest heist in crypto history went down, minute by minute, wallet by wallet, and post by post.
+This is how the biggest heist in crypto history went down, minute by minute and wallet by wallet.
 
 **[OST / TITLE CARD]** **THE 20-MINUTE HEIST**
 
 ---
 
-## CHAPTER 1 — THE VAULT AND THE DOOR — 1:30–3:55
+## CHAPTER 1 — THE VAULT AND THE DOOR — 1:34–4:09
 
 **[VISUAL]** Animated diagram: a giant vault labelled *COLD STORAGE* (offline, slow, heavily guarded) beside a smaller cash drawer labelled *HOT WALLETS* (online, fast, always open). Arrows show user withdrawals flowing out of the hot wallets.
 
@@ -61,7 +61,7 @@ Hot wallets are the most attacked targets in the industry, and in 2026 the attac
 
 **[VISUAL]** Timeline bar. Pin at **Feb 2025: Bybit — ~$1.5B**. Pin at **Sept 24, 2026: Bitget — ~$388M**.
 
-In February 2025, the exchange Bybit lost about one and a half billion dollars. The FBI pinned it on North Korea, and specifically on a unit tracked as *TraderTraitor*.
+In February 2025, the exchange Bybit lost about one and a half billion dollars in ether. It was the record at the time. The FBI pinned it on North Korea, and specifically on a unit tracked as *TraderTraitor*. We'll come back to Bybit, because the two hacks have a lot in common.
 
 Then, just five weeks before our story, on September 24th, 2026, the exchange Bitget was drained of around three hundred and eighty-eight million dollars. Bitget first estimated three hundred and fifty-one million, then revised the figure upward after counting transfers on Zcash and Tron. Its CEO said the attacker got in through a vulnerability in a *third-party security product*, which handed over high-level internal credentials. Analysts at TRM Labs saw fund flows overlapping with known North Korean theft proceeds.
 
@@ -79,7 +79,7 @@ Keep Bitget in mind, because that dotted line is going to matter later.
 
 ---
 
-## CHAPTER 2 — TWENTY MINUTES — 3:55–6:35
+## CHAPTER 2 — TWENTY MINUTES — 4:09–6:48
 
 **[VISUAL]** A world map of chains, one glowing node per blockchain. A clock in the corner reads **20:00 UTC · Oct 29**.
 **[SFX/MUSIC]** Pulse beat, building.
@@ -126,7 +126,7 @@ First, the question every security engineer was asking that night: how do you ge
 
 ---
 
-## CHAPTER 3 — THE KEY THAT WASN'T STOLEN — 6:35–9:25
+## CHAPTER 3 — THE KEY THAT WASN'T STOLEN — 6:48–9:37
 
 **[VISUAL]** A laptop on a desk in a dark room. Its screen flickers.
 
@@ -168,12 +168,12 @@ And that is the uncomfortable lesson for the whole industry. You can lock your k
 
 ---
 
-## CHAPTER 4 — THE SCRAMBLE — 9:25–12:55
+## CHAPTER 4 — THE SCRAMBLE — 9:37–13:15
 
-**[VISUAL]** Split screen: on the left, the waterfall of outgoing transactions; on the right, an X/Twitter feed starting to light up.
-**[SFX/MUSIC]** Tempo rises. Notification pings.
+**[VISUAL]** Split screen: on the left, the waterfall of outgoing transactions; on the right, a block explorer tallying outflows that keep climbing.
+**[SFX/MUSIC]** Tempo rises. Alert pings.
 
-By early evening in New York, Crypto Twitter knew something was wrong. Alert bots and independent sleuths were posting wallet addresses and outflow totals that were growing by the minute. FXStreet ran a breaking story that on-chain data suggested Binance had likely been hacked for an estimated six billion dollars.
+By early evening in New York, the crypto world knew something was wrong. On-chain monitoring tools and independent investigators were tracking wallet addresses and outflow totals that were growing by the minute. FXStreet ran a breaking story that on-chain data suggested Binance had likely been hacked for an estimated six billion dollars.
 
 **[VISUAL]** Binance announcement card.
 
@@ -185,21 +185,15 @@ Binance came out with a statement acknowledging a **"potential security issue."*
 
 For hundreds of millions of users, that's the moment it became real. Balances still showed on screen, but nothing could leave. Anyone who lived through November 2022 knew that feeling. FTX also froze withdrawals first, and only later admitted the money was gone. So the most important question that night wasn't technical. It was a question of trust: is the money behind those balances actually there?
 
-Binance's answer would come over the next 48 hours. In the meantime, a second race was happening on-chain.
+Binance's answer would come over the next 48 hours. In the meantime, a second race was happening on-chain. The attacker needed to move stablecoins before their issuers could react. The issuers needed to freeze before the coins were swapped into something unfreezable.
 
-Now the race was on. The attacker needed to move stablecoins before their issuers could react. The issuers needed to freeze before the coins were swapped into something unfreezable.
+**[VISUAL]** Circle logo. A USDC token icon locks with a padlock. Counter: *800,000,000*.
 
-**[VISUAL]** Screenshot recreation of Jeremy Allaire's post (Circle).
+**Circle**, which issues USDC, moved first. Working with law enforcement, it froze **more than eight hundred million USDC** linked to the attack.
 
-The CEO of Circle, which issues USDC, posted first:
+**[VISUAL]** Tether logo. A USDT token icon locks. Counter: *1,567,000,000*.
 
-> **Jeremy Allaire (@jerallaire):** "Circle is closely tracking reports of a potential exploit involving Binance. In coordination with law enforcement, we have frozen more than 800M USDC associated with the incident and will continue supporting the investigation."
-
-**[VISUAL]** Paolo Ardoino's post (Tether).
-
-Minutes later came Tether's CEO:
-
-> **Paolo Ardoino (@paoloardoino):** "Tether froze more than 1.567B USDT related to a potential Binance exchange hack. Protecting the industry and our partners is our main priority. Stay safe everyone."
+Then **Tether** froze **more than one point five six seven billion USDT**, calling it a step to protect the industry and its partners.
 
 **[OST]** Tether: >1.567B USDT frozen · Circle: >800M USDC frozen
 
@@ -207,29 +201,31 @@ Within hours, the two biggest stablecoin companies had locked more than two poin
 
 Ripple confirmed it had frozen RLUSD too. The amount is disputed: TRM Labs reported about forty million, while Binance co-CEO Yi He put it closer to two hundred million.
 
-**[VISUAL]** ZachXBT post: "Arbitrum Security Council has executed a transaction to freeze ~$30.5M from the Binance Exploit."
+**[VISUAL]** Arbitrum network graphic. A council of signer icons approves a single "FREEZE" transaction.
 
-Then something more unusual happened. The on-chain investigator **ZachXBT** posted that the **Arbitrum Security Council**, a group of signers who can make emergency changes to the Arbitrum network, had executed a transaction to **freeze about thirty and a half million dollars** sitting at an exploiter address on Arbitrum.
+Then something more unusual happened. According to on-chain investigator **ZachXBT**, the **Arbitrum Security Council**, a group of signers who can make emergency changes to the Arbitrum network, had executed a transaction to **freeze about thirty and a half million dollars** sitting at an exploiter address on Arbitrum.
 
 **[OST]** Exploiter address (per ZachXBT): `0x3E2bf1ac6bf0934BBba6456C341c2EcbCED632d5`
 
-Shortly after, ZachXBT posted a running total:
-
-> **ZachXBT (@zachxbt):** "Update: This brings the total frozen for the Binance exploit so far to over $2.83B"
+Soon after that, ZachXBT's running tally passed **two point eight three billion dollars** frozen.
 
 **[OST]** Frozen so far: ~$2.6B–$3B depending on source
 
-Binance's own number would settle at about **three billion dollars** frozen. Chainalysis put it near two point eight, and Elliptic at over two point six.
+Binance's own number would settle at about **three billion dollars** frozen.
 
 **[VISUAL]** The stacked bar from Chapter 2 again. The stablecoin slices turn grey (frozen). The ETH and BTC slices stay bright red.
 
 That's nearly half the haul locked down in hours. But look at what stayed red: the ether and the bitcoin. No company can freeze those. TRM estimated the attacker was still holding roughly **two point four billion dollars**, mostly ETH and BTC.
 
+**[VISUAL]** CoinDesk headline: *"Crypto experts question double standard after issuers freeze billions."*
+
+The freezes also started an argument. Tether and Circle had locked more than two billion dollars within hours. Critics asked whether a small project hacked on an ordinary Tuesday would get the same treatment. CoinDesk noted that Circle had faced criticism after a hack earlier in the year, and that Tether hadn't said whether law enforcement had asked for its freeze. The freezes saved billions, but they also showed how much power a handful of stablecoin companies hold over money that's supposed to be decentralized.
+
 The money that could be frozen was frozen, and the rest went on the move.
 
 ---
 
-## CHAPTER 5 — FOLLOW THE MONEY — 12:55–16:00
+## CHAPTER 5 — FOLLOW THE MONEY — 13:15–16:07
 
 **[VISUAL]** Dark map. A single glowing dot on the Tron network begins hopping: 1, 2, 3… a counter in the corner climbs to **28**.
 **[SFX/MUSIC]** Ticking clock, sparse piano.
@@ -249,9 +245,7 @@ From there, the funds went through **THORChain**, a decentralized cross-chain sw
 **[VISUAL]** The dotted line from Chapter 1's *Bitget* pin swings forward and connects to the same Ethereum address.
 **[SFX/MUSIC]** Single heavy hit.
 
-And then came the twist. On October 30th, ZachXBT posted:
-
-> **ZachXBT (@zachxbt):** "Update: Stolen funds from the $6.3B Binance exploit and $388M Bitget exploit were commingled at the same address 45 minutes ago, after arriving via THORChain. This indicates the same actor is likely behind both incidents…"
+And then came the twist. On October 30th, ZachXBT found that stolen funds from the Binance hack, arriving through THORChain, had been mixed in the same wallet with funds from the three-hundred-and-eighty-eight-million-dollar **Bitget** hack. His conclusion was that the same actor was likely behind both.
 
 **[OST]** Shared address (reported): `0x15104a9ce0f08a8f0075a0869ae80e795fe0feb7`
 
@@ -267,74 +261,66 @@ But note the caution. Elliptic and ZachXBT both pointed out that laundering netw
 
 THORChain itself landed in the spotlight. Bitget CEO Gracy Chen had asked it to block the attacker's addresses. THORChain declined, saying it has **no mechanism to block individual swaps**.
 
-**[OST]** RUNE +13% after the hack
-
-And here's an ironic detail. THORChain's token, **RUNE**, reportedly *rose* about **thirteen percent** after the hack, partly on all the volume the laundering was pushing through the network.
-
 **[VISUAL]** Return to the counter: 546 transfers… still ticking.
 
 As of October 30th, reports said the attacker had not yet cashed the stolen crypto out into fiat. Turning roughly two and a half billion dollars of hot coins into usable money is a much slower job than stealing them.
 
 ---
 
-## CHAPTER 6 — THE TIMELINE ERUPTS — 16:00–20:15
+## CHAPTER 6 — ECHOES OF BYBIT — 16:07–20:02
 
-**[VISUAL]** Full-screen X feed. Posts scroll by, some highlighted.
-**[SFX/MUSIC]** Lighter, almost satirical percussion.
+**[VISUAL]** Split screen. Left: *BYBIT · Feb 21, 2025*. Right: *BINANCE · Oct 29, 2026*. Same dark styling, mirrored.
+**[SFX/MUSIC]** Slow, low strings.
 
-While investigators traced wallets, the rest of the internet did what it always does.
+To understand what happened at Binance, it helps to go back twenty months, to the last time crypto saw a theft this big.
 
-**[VISUAL]** Musk avatar → laughing emoji · grimacing emoji.
+**[OST]** Bybit · Feb 21, 2025 · ~401,000 ETH · ≈ $1.5B
 
-**Elon Musk** reacted to the news with laughing and grimacing emojis. One report says he posted "Everyday is Zeroday" as the hack broke. When a commentator compared Binance's reassurances to Sam Bankman-Fried's promises in the final days of FTX, Musk replied with a grimace.
+On February 21st, 2025, the Dubai-based exchange Bybit lost roughly four hundred thousand ether, about one and a half billion dollars at the time. It was the largest crypto theft ever recorded, until this week.
 
-**[OST]** "FTX 2.0?"
+**[VISUAL]** Bybit's multisig: three signer icons around a cold wallet. A friendly "Approve transfer" screen floats in front, and behind it the real transaction pulses red: *change wallet logic → attacker contract*.
 
-That FTX comparison was the one that stung. In 2022, FTX told customers everything was fine right up until it collapsed, and Musk was now amplifying that comparison to his followers.
+Bybit's ether wasn't in a hot wallet. It sat in a **cold wallet** protected by several signers, using the popular multisig service Safe. The attackers never touched those signers' keys. Instead they broke into a **developer's machine at Safe**, and used it to plant malicious code in the web interface that Bybit's signers used to review transactions.
 
-**[VISUAL]** CZ post card.
+When Bybit's team went to approve what looked like a routine transfer, the screen showed them exactly what they expected. But what they actually signed quietly swapped out the wallet's underlying logic for a contract the attackers controlled. Moments later, the cold wallet was empty.
 
-Binance's co-founder **Changpeng "CZ" Zhao**, who stepped down as CEO in 2023, fired back. He said he respected Musk, but that it was a **"bad time to troll,"** and asked him to stop and show a little support.
+**[OST]** Real signatures. False intent.
 
-Then he added a pointed reminder. Binance had put about five hundred million dollars into Musk's 2022 takeover of Twitter, and CZ said that stake, now held as **SpaceX shares**, was worth **more than a billion dollars**.
+Put the two attacks side by side and the pattern is hard to miss.
 
-**[OST]** Binance's $500M Twitter stake → >$1B in SpaceX shares (per CZ)
+**[VISUAL]** Comparison table builds row by row.
 
-Many readers took that as a threat to sell. CZ clarified later that he never suggested selling. He was just pointing out the kinds of funds Binance had available. Either way, the exchange made headlines across Forbes, Decrypt and the wider press as "the CZ–Musk spat."
+**[OST]** Entry point — Bybit: a Safe developer's machine · Binance: an engineer's laptop (+ more breach points)
 
-**[VISUAL]** Richard Teng's video post: a still with a transcript scrolling beside it.
+**First, the way in.** At Bybit, it was a developer's computer at a supplier. At Binance, it started with an engineer's laptop. Both times the attacker went after a *person* with access, not the cryptography.
 
-The more consequential posts came from Binance's current leadership. Co-CEO **Richard Teng** posted a video address, with the transcript beginning:
+**[OST]** Trick — Bybit: fake signing screen → wallet logic swapped · Binance: EIP-7702 delegation → sweeper contract
 
-> **Richard Teng (@_RichardTeng):** "Hi everyone, firstly, I want to thank you all for the support. Difficult times like these are a great reminder how strong our industry is when we work together. We are grateful to our partners that acted quickly to freeze the hacked assets…"
+**Second, the trick.** In both cases the victim's own legitimate signatures did the work. Bybit's signers approved a hidden change to their wallet's code. Binance's systems signed a delegation that turned a hot wallet into the attacker's sweeper. The method was different, but the idea was the same: don't steal the key, get the key's owner to sign.
 
-He then made the promise that would define the next 48 hours:
+**[OST]** Assets — Bybit: almost all ETH · Binance: over half stablecoins
 
-> **"Binance will absorb the financial impact of these stolen funds, not our users."**
+**Third, what was taken, and this is where the stories split.** Bybit's loot was almost entirely ether, and nobody can freeze ether. Only a small fraction of the Bybit money was ever frozen. Binance's haul was full of USDT, USDC and RLUSD, so issuers could lock around **three billion dollars** within hours. The bigger hack ended up far more recoverable.
 
-**[OST]** Binance reserves **$6.34B** of company funds to cover the loss
+**[OST]** Laundering — both through THORChain
 
-Teng said Binance had set aside **over six point three four billion dollars** of company funds, which is more than the amount stolen.
+**Fourth, the getaway.** Bybit's attackers pushed most of the stolen ether through **THORChain** into bitcoin within about ten days, and the network was criticized for processing it. Twenty months later, the Binance funds went through the same network, and THORChain gave the same answer: it has no mechanism to block them.
 
-**[VISUAL]** Teng's "live update" post with key lines highlighted.
+**[OST]** Response — Bybit: withdrawals stayed open, loans from peers · Binance: withdrawals paused, self-funded $6.34B reserve
 
-About a day after the attack, he followed up with a longer written update:
+**Fifth, the response.** Bybit's CEO, Ben Zhou, went live within hours, said the exchange was solvent, and kept withdrawals open through a wave of panic, covering the gap with emergency loans of ether from other exchanges and investors. Binance went the other way. It paused withdrawals, and covered the entire loss from its own reserves without needing to borrow.
 
-> **Richard Teng (@_RichardTeng):** "Over the past 24 hours, our teams have been working around the clock to respond to a serious security incident involving unauthorized withdrawals of funds. This is a live update on where things stand - what we've done, what we've learned, and what comes next…"
+**[OST]** Attribution — Bybit: FBI confirmed in 5 days · Binance: private firms only (so far)
 
-That update is where the story got more complicated: the breach was not just one laptop, and the attacker had used EIP-7702 to get execution approval over a hot wallet. That matters for the narrative. Binance moved from a simple "compromised device" explanation to admitting a multi-stage intrusion, which is exactly the type of disclosure that tends to come out slowly after a hack.
+**And finally, the culprit.** Within five days of Bybit, the FBI publicly named North Korea's TraderTraitor. For Binance, TRM Labs and Chainalysis say it's the same group, but as of now no government has confirmed it.
 
-**[VISUAL]** Trader avatars with quote bubbles.
+**[VISUAL]** The two halves of the split screen slide together into one image.
 
-Not everyone panicked. Trader **Quinten Francois** argued the damage would be contained. The market was down only about two to three percent, and unlike with FTX, there was no chain reaction, because the money had been taken from the player with the deepest pockets.
-
-**[VISUAL]** CoinDesk headline: *"Crypto experts question double standard after issuers freeze billions."*
-
-There was a quieter debate underneath it all. Tether and Circle had frozen over two billion dollars within hours. Critics asked whether a small project hacked on a Tuesday would get the same treatment. CoinDesk noted Circle had been criticised after a hack earlier in the year, and that Ardoino's post hadn't said whether law enforcement had asked for the freeze. The freezes saved billions, but they also showed how much power a few stablecoin companies hold over money that's supposed to be decentralized.
+The lesson from Bybit was supposed to be "verify what you sign." Twenty months later, the same playbook worked against the biggest exchange in the world, four times over.
 
 ---
 
-## CHAPTER 7 — THE MORNING AFTER — 20:15–22:45
+## CHAPTER 7 — THE MORNING AFTER — 20:02–23:01
 
 **[VISUAL]** Price charts. BTC line dips; BNB line dips further.
 **[SFX/MUSIC]** Music settles, slower.
@@ -345,13 +331,19 @@ The markets flinched but didn't break.
 
 **Bitcoin** fell more than four percent, to around seventy-eight thousand dollars. Binance's own token, **BNB**, took a heavier hit, falling about eight to nine percent, to around six hundred and ninety.
 
+**[VISUAL]** Binance statement card: *"Binance will absorb the financial impact of these stolen funds, not our users."*
+
+That's because Binance moved quickly to answer the only question most customers cared about. Co-CEO Richard Teng said the exchange would absorb the financial impact of the stolen funds, not its users. He said Binance had set aside **more than six point three four billion dollars** of company money, which is more than the amount taken.
+
+**[OST]** Binance reserves **$6.34B** to cover the loss
+
 **[VISUAL]** A progress bar labelled *Assets replenished*: fills to 80%… then 90%.
 
 Binance went to work refilling its wallets from its **SAFU** emergency fund, which stands for *Secure Asset Fund for Users*, plus part of its futures insurance fund and its corporate treasury. On October 30th it said about **eighty percent** of the stolen assets had been replenished. By Saturday, October 31st, that was **ninety percent**.
 
 **[VISUAL]** Side-by-side: *FTX 2022* — "assets are fine" → bankruptcy · *Binance 2026* — "we'll cover it" → wallets refilled on-chain.
 
-This is where the FTX comparison really gets tested. FTX's promises couldn't be checked, and in the end they weren't true. Binance's promise can be checked to a large degree, because the replenishment happens on public blockchains. Analysts can watch funds move from cold storage and treasury wallets back into the hot wallets. Skeptics are right that a public pledge is not the same as audited proof. But on-chain, the refill is visible in a way that FTX's balance sheet never was.
+Inevitably, people compared it to FTX, which also froze withdrawals and promised customers their money was safe. This is where that comparison really gets tested. FTX's promises couldn't be checked, and in the end they weren't true. Binance's promise can be checked to a large degree, because the replenishment happens on public blockchains. Analysts can watch funds move from cold storage and treasury wallets back into the hot wallets. Skeptics are right that a public pledge is not the same as audited proof. But on-chain, the refill is visible in a way that FTX's balance sheet never was.
 
 **[OST]** Withdrawals: target **Sunday, Nov 1**, in phases
 
@@ -373,7 +365,7 @@ As we record this, several big questions are still open.
 
 ---
 
-## OUTRO — 22:45–23:45
+## OUTRO — 23:01–24:03
 
 **[VISUAL]** Return to the opening: the waterfall of transactions, now slowing, then stopping. The cursor blinks.
 **[SFX/MUSIC]** Drone returns, fades.
@@ -399,29 +391,22 @@ The industry got a few things right. Stablecoin issuers froze billions in hours,
 
 | Section | Spoken words | Timecode |
 |---|---|---|
-| Cold open | 187 | 0:00–1:30 |
-| Ch 1 — Vault & door | 320 | 1:30–3:55 |
-| Ch 2 — Twenty minutes | 328 | 3:55–6:35 |
-| Ch 3 — The key | 370 | 6:35–9:25 |
-| Ch 4 — The scramble | 471 | 9:25–12:55 |
-| Ch 5 — Follow the money | 391 | 12:55–16:00 |
-| Ch 6 — Timeline erupts | 581 | 16:00–20:15 |
-| Ch 7 — Morning after | 326 | 20:15–22:45 |
-| Outro | 122 | 22:45–23:45 |
-| **Total** | **≈3,100** | **≈23:45** |
+| Cold open | 197 | 0:00–1:34 |
+| Ch 1 — Vault & door | 343 | 1:34–4:09 |
+| Ch 2 — Twenty minutes | 328 | 4:09–6:48 |
+| Ch 3 — The key | 370 | 6:48–9:37 |
+| Ch 4 — The scramble | 491 | 9:37–13:15 |
+| Ch 5 — Follow the money | 360 | 13:15–16:07 |
+| Ch 6 — Echoes of Bybit | 502 | 16:07–20:02 |
+| Ch 7 — Morning after | 398 | 20:02–23:01 |
+| Outro | 122 | 23:01–24:03 |
+| **Total** | **≈3,111** | **≈24:03** |
 
-At 145 wpm it runs about 23:00, and at 135 wpm about 24:40. Both stay inside the 20–25 minute window. To stretch toward 25, let the on-chain animations in Chapters 2 and 5 breathe, or add an interview or expert soundbite. To trim toward 20, cut the Quinten Francois paragraph and the RUNE detail.
+At 145 wpm it runs about 23:18, and at 135 wpm about 24:52. Both stay inside the 20–25 minute window. To trim, cut the FTX-feeling paragraph in Chapter 4 or the freeze-debate paragraph.
 
-**X/Twitter posts.** Show them as **recreated cards**, not raw screenshots, and only use posts you have opened and verified yourself. Quotes marked verbatim above were drawn from post previews in search results:
-- Jeremy Allaire: https://x.com/jerallaire/status/2115916207463481846
-- Paolo Ardoino: https://x.com/paoloardoino/status/2115918000373346709
-- ZachXBT (Arbitrum freeze): https://x.com/zachxbt/status/2115960582230913357
-- ZachXBT ($2.83B frozen): https://x.com/zachxbt/status/2115972303913935209
-- ZachXBT (Bitget link): https://x.com/zachxbt/status/2116030284261179538
-- Richard Teng (video transcript): https://x.com/_RichardTeng/status/2116176703823528024
-- Richard Teng (live update): https://x.com/_RichardTeng/status/2116259036903669855
+**Single-source details, so verify before publishing.** Spreek as the first public flag. The BNB price drop.
 
-**Paraphrased, not verbatim.** CZ's "bad time to troll" exchange is paraphrased from press coverage, except for that phrase itself. Musk's "Everyday is Zeroday" comes from a single report, so verify it before you put it on screen. Spreek as the first public flag is also single-source.
+**Bybit details (Ch 6)** come from widely reported 2025 coverage: Bybit's own statements, the FBI's PSA of Feb 26, 2025, and the Safe{Wallet} incident report. Double-check the exact ETH amount (~401K) and laundering timeline against those sources.
 
 ## FACT-CHECK SHEET (figures conflict between sources)
 
@@ -448,8 +433,8 @@ At 145 wpm it runs about 23:00, and at 135 wpm about 24:40. Both stay inside the
 - Washington Post: https://www.washingtonpost.com/technology/2026/10/29/suspected-binance-hack-sets-off-scramble-lock-down-billions-crypto/
 - Cointelegraph live blog: https://cointelegraph.com/news/live-updates-binance-63b-hack-linked-to-north-koreas-tradertraitor
 - CoinDesk (freeze debate): https://www.coindesk.com/business/2026/10/30/experts-divided-over-binance-hack-asset-freezes-warn-recovery-is-another-matter
-- Decrypt (CZ vs Musk): https://decrypt.co/382236/elon-musk-cz-trade-blows-spacex-shares-binance-hack
-- Forbes (CZ vs Musk): https://www.forbes.com/sites/fionariley/2026/10/30/binance-cofounder-asks-musk-not-to-troll-after-record-63-billion-crypto-hack/
 - Crypto Economy (shared address): https://crypto-economy.com/zachxbt-links-binance-and-bitget-exploits-via-shared-wallet/
 - The Block (Bitget): https://theblock.co/news/business/2026-09-28-bitget-starts-phased-withdrawal-resumption-416965
+- ZachXBT on-chain findings (Arbitrum freeze, $2.83B tally, Bitget link): https://x.com/zachxbt/status/2116030284261179538
 - Bitcoinke (THORChain): https://bitcoinke.io/2026/10/why-binance-hacker-passed-funds-via-thorchain/
+- FBI PSA on Bybit (Feb 26, 2025): https://www.ic3.gov/PSA/2025/PSA250226
